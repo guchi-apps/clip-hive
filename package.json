@@ -1,6 +1,6 @@
 {
   "name": "clip-hive",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "private": true,
   "engines": {
     "node": ">=20.19.0"
@@ -14,6 +14,11 @@
     "typecheck": "tsc --noEmit",
     "test": "npm run lint && npm run typecheck",
     "postinstall": "prisma generate",
+    "preversion": "npm test",
+    "version": "node scripts/version-changelog.mjs && git add src/lib/changelog.ts",
+    "version:patch": "npm version patch --no-git-tag-version",
+    "version:minor": "npm version minor --no-git-tag-version",
+    "version:major": "npm version major --no-git-tag-version",
     "env:init": "cp -n .env.local.example .env.local && echo '.env.local を編集してください（DB/Auth/Google/Storage）'",
     "db:setup": "bash scripts/setup-db.sh",
     "db:migrate:dev": "prisma migrate dev",
@@ -28,6 +33,7 @@
     "@ducanh2912/next-pwa": "^10.2.9",
     "@hookform/resolvers": "^4.1.3",
     "@prisma/client": "^6.19.3",
+    "busboy": "^1.6.0",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "date-fns": "^4.4.0",
@@ -48,6 +54,7 @@
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
+    "@types/busboy": "^1.5.4",
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
