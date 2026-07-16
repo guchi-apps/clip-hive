@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useFormStatus } from "react-dom";
-import { ListVideo, Trash2, LogOut, Loader2, Video, Plus } from "lucide-react";
+import { ListVideo, Trash2, LogOut, Loader2, Video, Plus, Settings } from "lucide-react";
 
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -13,6 +13,7 @@ import { signOutAction } from "@/app/actions/auth";
 const navItems = [
   { href: "/videos", label: "一覧", icon: ListVideo },
   { href: "/trash", label: "ゴミ箱", icon: Trash2 },
+  { href: "/settings", label: "設定", icon: Settings },
 ];
 
 export function Navigation() {

@@ -1,6 +1,6 @@
 {
   "name": "clip-hive",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "private": true,
   "engines": {
     "node": ">=20.19.0"
@@ -14,6 +14,11 @@
     "typecheck": "tsc --noEmit",
     "test": "npm run lint && npm run typecheck",
     "postinstall": "prisma generate",
+    "preversion": "npm test",
+    "version": "node scripts/version-changelog.mjs && git add src/lib/changelog.ts",
+    "version:patch": "npm version patch --no-git-tag-version",
+    "version:minor": "npm version minor --no-git-tag-version",
+    "version:major": "npm version major --no-git-tag-version",
     "env:init": "cp -n .env.local.example .env.local && echo '.env.local を編集してください（DB/Auth/Google/Storage）'",
     "db:setup": "bash scripts/setup-db.sh",
     "db:migrate:dev": "prisma migrate dev",
