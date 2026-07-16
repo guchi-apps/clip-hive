@@ -2,13 +2,11 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useFormStatus } from "react-dom";
-import { ListVideo, Trash2, LogOut, Loader2, Video, Plus, Settings } from "lucide-react";
+import { ListVideo, Trash2, Video, Plus, Settings } from "lucide-react";
 
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { ThemeToggle } from "@/components/ThemeToggle";
-import { signOutAction } from "@/app/actions/auth";
 
 const navItems = [
   { href: "/videos", label: "一覧", icon: ListVideo },
@@ -54,9 +52,6 @@ export function Navigation() {
             </Link>
           </Button>
           <ThemeToggle />
-          <form action={signOutAction}>
-            <SignOutButton />
-          </form>
         </div>
       </header>
 
@@ -84,36 +79,7 @@ export function Navigation() {
           <Plus className="size-5" />
           登録
         </Link>
-        <form action={signOutAction} className="flex flex-1">
-          <MobileSignOutButton />
-        </form>
       </nav>
     </>
-  );
-}
-
-function SignOutButton() {
-  const { pending } = useFormStatus();
-
-  return (
-    <Button type="submit" variant="ghost" size="sm" disabled={pending}>
-      {pending ? <Loader2 className="size-4 animate-spin" /> : <LogOut className="size-4" />}
-      ログアウト
-    </Button>
-  );
-}
-
-function MobileSignOutButton() {
-  const { pending } = useFormStatus();
-
-  return (
-    <button
-      type="submit"
-      disabled={pending}
-      className="flex flex-1 flex-col items-center gap-0.5 rounded-lg px-1 py-1.5 text-[10px] whitespace-nowrap text-muted-foreground disabled:opacity-50"
-    >
-      {pending ? <Loader2 className="size-5 animate-spin" /> : <LogOut className="size-5" />}
-      ログアウト
-    </button>
   );
 }

@@ -21,6 +21,14 @@ export interface ChangelogEntry {
  */
 export const APP_CHANGELOG: ChangelogEntry[] = [
   {
+    version: "0.1.2",
+    date: "2026-07-17",
+    changes: [
+      "動画ファイルのアップロードに失敗する不具合を修正",
+      "ログアウトを設定画面から行えるように変更",
+    ],
+  },
+  {
     version: "0.1.1",
     date: "2026-07-17",
     changes: [

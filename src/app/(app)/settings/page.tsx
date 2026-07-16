@@ -7,6 +7,8 @@ import { formatBytes } from "@/lib/format";
 import { getQuotaBytes, getUsedBytes } from "@/lib/quota";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ChangelogDialog } from "@/components/ChangelogDialog";
+import { SignOutButton } from "@/components/SignOutButton";
+import { signOutAction } from "@/app/actions/auth";
 
 export default async function SettingsPage() {
   const session = await auth();
@@ -23,14 +25,19 @@ export default async function SettingsPage() {
         <CardHeader>
           <CardTitle>プロフィール</CardTitle>
         </CardHeader>
-        <CardContent className="flex items-center gap-4">
-          {user.image && (
-            <Image src={user.image} alt="" width={48} height={48} className="rounded-full" />
-          )}
-          <div>
-            <p className="font-medium">{user.name}</p>
-            <p className="text-sm text-muted-foreground">{user.email}</p>
+        <CardContent className="flex items-center justify-between gap-4">
+          <div className="flex items-center gap-4">
+            {user.image && (
+              <Image src={user.image} alt="" width={48} height={48} className="rounded-full" />
+            )}
+            <div>
+              <p className="font-medium">{user.name}</p>
+              <p className="text-sm text-muted-foreground">{user.email}</p>
+            </div>
           </div>
+          <form action={signOutAction}>
+            <SignOutButton />
+          </form>
         </CardContent>
       </Card>
 
