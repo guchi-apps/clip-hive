@@ -2,6 +2,7 @@ import { randomUUID } from "node:crypto";
 import { Readable } from "node:stream";
 import type { ReadableStream as NodeWebReadableStream } from "node:stream/web";
 
+import busboy from "busboy";
 import { Prisma } from "@prisma/client";
 
 import { requireUserId } from "@/lib/auth-user";
@@ -9,6 +10,7 @@ import { db } from "@/lib/db";
 import { minutesToSeconds } from "@/lib/duration";
 import { hasCapacityFor } from "@/lib/quota";
 import { getDefaultStorageDriver, getStorageAdapter } from "@/lib/storage";
+import type { StorageAdapter } from "@/lib/storage";
 import { resolveTagIds } from "@/lib/tag-service";
 import { hashUrl } from "@/lib/url-hash";
 import { CreateUrlVideoSchema, VideoCommonSchema } from "@/lib/validators";
@@ -98,44 +100,135 @@ async function createUrlVideo(userId: string, request: Request) {
   }
 }
 
-async function createFileVideo(userId: string, request: Request) {
-  const form = await request.formData();
-  const file = form.get("file");
-  if (!(file instanceof File)) {
-    return Response.json({ error: "動画ファイルを選択してください" }, { status: 400 });
-  }
-  if (!file.type.startsWith("video/")) {
-    return Response.json({ error: "動画ファイルのみアップロードできます" }, { status: 400 });
-  }
+interface UploadedFile {
+  key: string;
+  fileName: string;
+  mimeType: string;
+  size: number;
+}
 
-  const tagsRaw = form.get("tags");
-  const durationMinutesRaw = form.get("durationMinutes");
+interface ParsedUpload {
+  fields: Record<string, string>;
+  uploaded: UploadedFile | null;
+  fileError: Error | null;
+  sawFile: boolean;
+}
 
-  const parsed = VideoCommonSchema.safeParse({
-    title: String(form.get("title") ?? ""),
-    note: form.get("note") ? String(form.get("note")) : undefined,
-    durationMinutes: durationMinutesRaw ? Number(durationMinutesRaw) : undefined,
-    tags: tagsRaw ? (JSON.parse(String(tagsRaw)) as string[]) : undefined,
+// multipart/form-data をストリームのままパースし、ファイル部分だけストレージへ直接書き込む
+// (busboyのイベントで代入する変数はクロージャ経由のためTSの型絞り込みが効かないので、
+//  結果はPromiseの解決値として1回だけ返し、呼び出し側では通常のconstとして扱えるようにする)
+function parseUploadStream(
+  userId: string,
+  request: Request,
+  contentType: string,
+  storage: StorageAdapter
+): Promise<ParsedUpload> {
+  return new Promise((resolve, reject) => {
+    const fields: Record<string, string> = {};
+    let uploaded: UploadedFile | null = null;
+    let sawFile = false;
+    let fileError: Error | null = null;
+    let putPromise: Promise<void> | null = null;
+
+    const bb = busboy({ headers: { "content-type": contentType }, limits: { files: 1 } });
+
+    bb.on("field", (name, value) => {
+      fields[name] = value;
+    });
+
+    bb.on("file", (_name, fileStream, info) => {
+      sawFile = true;
+
+      if (!info.mimeType.startsWith("video/")) {
+        fileError = new Error("動画ファイルのみアップロードできます");
+        fileStream.resume();
+        return;
+      }
+
+      const extension = info.filename.includes(".")
+        ? info.filename.slice(info.filename.lastIndexOf("."))
+        : "";
+      const key = `${userId}/${randomUUID()}${extension}`;
+
+      let size = 0;
+      fileStream.on("data", (chunk: Buffer) => {
+        size += chunk.length;
+      });
+
+      putPromise = storage
+        .put({ key, body: fileStream, contentType: info.mimeType })
+        .then(() => {
+          uploaded = { key, fileName: info.filename, mimeType: info.mimeType, size };
+        })
+        .catch((error: unknown) => {
+          fileError = error instanceof Error ? error : new Error(String(error));
+        });
+    });
+
+    bb.on("close", () => {
+      (putPromise ?? Promise.resolve())
+        .then(() => resolve({ fields, uploaded, fileError, sawFile }))
+        .catch(reject);
+    });
+    bb.on("error", reject);
+
+    Readable.fromWeb(request.body as unknown as NodeWebReadableStream<Uint8Array>).pipe(bb);
   });
-  if (!parsed.success) {
-    return Response.json({ error: parsed.error.flatten() }, { status: 400 });
+}
+
+// multipart/form-data をメモリに全体展開せず、ファイル部分だけストレージへ直接ストリーミングする。
+// (request.formData() は File をメモリ上に展開するため、動画のような大容量アップロードでは
+//  PM2 の max_memory_restart を超えてプロセスが強制再起動されるおそれがある)
+async function createFileVideo(userId: string, request: Request) {
+  const contentType = request.headers.get("content-type");
+  if (!contentType || !request.body) {
+    return Response.json({ error: "リクエストの形式が正しくありません" }, { status: 400 });
   }
 
-  const fileSize = BigInt(file.size);
-  if (!(await hasCapacityFor(userId, fileSize))) {
+  // Content-Length はフォーム全体(ファイル+他フィールド)のバイト数なので、
+  // 実ファイルサイズよりわずかに大きいが、事前の容量チェックには十分な近似値として使う。
+  const contentLength = Number(request.headers.get("content-length") ?? 0);
+  if (contentLength > 0 && !(await hasCapacityFor(userId, BigInt(contentLength)))) {
     return Response.json({ error: "容量の上限を超えるためアップロードできません" }, { status: 413 });
   }
 
   const driver = getDefaultStorageDriver();
   const storage = getStorageAdapter(driver);
-  const extension = file.name.includes(".") ? file.name.slice(file.name.lastIndexOf(".")) : "";
-  const key = `${userId}/${randomUUID()}${extension}`;
 
-  await storage.put({
-    key,
-    body: Readable.fromWeb(file.stream() as unknown as NodeWebReadableStream<Uint8Array>),
-    contentType: file.type,
+  const { fields, uploaded, fileError, sawFile } = await parseUploadStream(
+    userId,
+    request,
+    contentType,
+    storage
+  );
+
+  if (!sawFile) {
+    return Response.json({ error: "動画ファイルを選択してください" }, { status: 400 });
+  }
+  if (fileError) {
+    if (uploaded) await storage.delete(uploaded.key).catch(() => {});
+    return Response.json({ error: fileError.message }, { status: 400 });
+  }
+  if (!uploaded) {
+    return Response.json({ error: "アップロードに失敗しました" }, { status: 500 });
+  }
+
+  const parsed = VideoCommonSchema.safeParse({
+    title: fields.title ?? "",
+    note: fields.note || undefined,
+    durationMinutes: fields.durationMinutes ? Number(fields.durationMinutes) : undefined,
+    tags: fields.tags ? (JSON.parse(fields.tags) as string[]) : undefined,
   });
+  if (!parsed.success) {
+    await storage.delete(uploaded.key).catch(() => {});
+    return Response.json({ error: parsed.error.flatten() }, { status: 400 });
+  }
+
+  // Content-Length が無いリクエスト(稀)向けの事後チェック。
+  if (contentLength <= 0 && !(await hasCapacityFor(userId, BigInt(uploaded.size)))) {
+    await storage.delete(uploaded.key).catch(() => {});
+    return Response.json({ error: "容量の上限を超えるためアップロードできません" }, { status: 413 });
+  }
 
   const { tags, durationMinutes, ...rest } = parsed.data;
   const tagIds = await resolveTagIds(userId, tags);
@@ -146,10 +239,10 @@ async function createFileVideo(userId: string, request: Request) {
       sourceType: "FILE",
       ...rest,
       storageDriver: driver,
-      storageKey: key,
-      originalFileName: file.name,
-      mimeType: file.type,
-      fileSize,
+      storageKey: uploaded.key,
+      originalFileName: uploaded.fileName,
+      mimeType: uploaded.mimeType,
+      fileSize: BigInt(uploaded.size),
       durationSeconds: durationMinutes !== undefined ? minutesToSeconds(durationMinutes) : null,
       ...(tagIds && { tags: { connect: tagIds.map((id) => ({ id })) } }),
     },
