@@ -15,6 +15,11 @@ const nextConfig: NextConfig = {
   // next-pwa が (disable 時も) webpack 設定を付与するため、
   // 開発時の Turbopack との併用エラーを抑止する。本番ビルドは --webpack で実行する。
   turbopack: {},
+  experimental: {
+    // src/proxy.ts (認証チェック) を全ルートに適用しているため、既定の10MB制限のままだと
+    // 動画アップロード(/api/videos)がそこで頭打ちになる。動画ファイルを見込んで大きめに確保する。
+    proxyClientMaxBodySize: "5gb",
+  },
 };
 
 const withPWA = withPWAInit({
