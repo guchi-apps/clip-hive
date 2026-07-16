@@ -7,7 +7,7 @@ import {
 } from "@aws-sdk/client-s3";
 import { Upload } from "@aws-sdk/lib-storage";
 
-import type { PutObjectParams, StorageAdapter } from "./types";
+import type { PutObjectParams, RangeOptions, StorageAdapter } from "./types";
 
 let client: S3Client | undefined;
 
@@ -49,9 +49,10 @@ export const s3StorageAdapter: StorageAdapter = {
     await upload.done();
   },
 
-  async createReadStream(key: string) {
+  async createReadStream(key: string, range?: RangeOptions) {
+    const rangeHeader = range ? `bytes=${range.start}-${range.end ?? ""}` : undefined;
     const result = await getClient().send(
-      new GetObjectCommand({ Bucket: bucket(), Key: key })
+      new GetObjectCommand({ Bucket: bucket(), Key: key, Range: rangeHeader })
     );
     const body = result.Body;
     if (!body || !(body instanceof Readable)) {

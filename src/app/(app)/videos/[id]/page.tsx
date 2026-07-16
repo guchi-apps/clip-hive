@@ -52,6 +52,15 @@ export default async function VideoDetailPage({ params }: { params: Promise<{ id
 
           {video.note && <p className="whitespace-pre-wrap text-sm">{video.note}</p>}
 
+          {video.sourceType === "FILE" && (
+            <video
+              controls
+              preload="metadata"
+              className="w-full rounded-lg bg-black"
+              src={`/api/videos/${video.id}/download`}
+            />
+          )}
+
           <div className="flex gap-2">
             {video.sourceType === "URL" && video.url && (
               <Button asChild size="sm">
@@ -62,8 +71,8 @@ export default async function VideoDetailPage({ params }: { params: Promise<{ id
               </Button>
             )}
             {video.sourceType === "FILE" && (
-              <Button asChild size="sm">
-                <a href={`/api/videos/${video.id}/download`} download={video.originalFileName ?? undefined}>
+              <Button asChild size="sm" variant="outline">
+                <a href={`/api/videos/${video.id}/download?dl=1`} download={video.originalFileName ?? undefined}>
                   <Download className="size-4" />
                   ダウンロード
                 </a>

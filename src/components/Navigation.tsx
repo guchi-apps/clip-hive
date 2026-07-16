@@ -83,6 +83,9 @@ export function Navigation() {
           <Plus className="size-5" />
           登録
         </Link>
+        <form action={signOutAction} className="flex flex-1">
+          <MobileSignOutButton />
+        </form>
       </nav>
     </>
   );
@@ -96,5 +99,20 @@ function SignOutButton() {
       {pending ? <Loader2 className="size-4 animate-spin" /> : <LogOut className="size-4" />}
       ログアウト
     </Button>
+  );
+}
+
+function MobileSignOutButton() {
+  const { pending } = useFormStatus();
+
+  return (
+    <button
+      type="submit"
+      disabled={pending}
+      className="flex flex-1 flex-col items-center gap-0.5 rounded-lg px-1 py-1.5 text-[10px] whitespace-nowrap text-muted-foreground disabled:opacity-50"
+    >
+      {pending ? <Loader2 className="size-5 animate-spin" /> : <LogOut className="size-5" />}
+      ログアウト
+    </button>
   );
 }

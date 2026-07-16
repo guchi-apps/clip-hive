@@ -213,7 +213,7 @@ jobs:
             set -euo pipefail
             cd "${TARGET_DIR}"
 
-            PORT="${APP_PORT:-3106}"
+            PORT="${APP_PORT:-3108}"
 
             echo "Cleaning up old release files..."
             rm -rf .next public package.json package-lock.json prisma deploy next.config.ts

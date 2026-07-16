@@ -97,5 +97,5 @@ deploy/             # PM2 設定
 - Signaly でアプリ用チャンネルを作成し `ci-webhook-url` を登録する
 - GitHub リポジトリの Secrets に `OP_SERVICE_ACCOUNT_TOKEN` を登録する
 - `main` ブランチの Branch protection（CI必須）を設定する
-- VPS上に `/apps/clip-hive/` を作成し、Apache VirtualHost（本番ポート `3106`）を追加する
+- VPS上に `/apps/clip-hive/` を作成し、Apache VirtualHost（本番ポート `3108`）を追加する
 - 本番用 Google OAuth クライアントを作成し、リダイレクトURIを登録する

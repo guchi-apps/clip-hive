@@ -3,7 +3,7 @@ import { mkdir, rm } from "node:fs/promises";
 import path from "node:path";
 import { pipeline } from "node:stream/promises";
 
-import type { PutObjectParams, StorageAdapter } from "./types";
+import type { PutObjectParams, RangeOptions, StorageAdapter } from "./types";
 
 // ローカル保存先はリポジトリ直下 storage/ (.gitignore 済み)。
 // 本番では VPS のディスク上にそのまま永続化される。
@@ -30,8 +30,8 @@ export const localStorageAdapter: StorageAdapter = {
     await pipeline(body, createWriteStream(filePath));
   },
 
-  async createReadStream(key: string) {
-    return createReadStream(resolveKeyPath(key));
+  async createReadStream(key: string, range?: RangeOptions) {
+    return createReadStream(resolveKeyPath(key), range && { start: range.start, end: range.end });
   },
 
   async delete(key: string) {
