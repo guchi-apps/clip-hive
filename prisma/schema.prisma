@@ -1,0 +1,128 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+// --- NextAuth.js / Auth.js v5 ---
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String? @db.Text
+  access_token      String? @db.Text
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String? @db.Text
+  session_state     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model VerificationToken {
+  identifier String
+  token      String
+  expires    DateTime
+
+  @@unique([identifier, token])
+}
+
+model User {
+  id            String    @id @default(cuid())
+  email         String    @unique
+  emailVerified DateTime?
+  name          String?
+  image         String?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  accounts Account[]
+  sessions Session[]
+  videos   Video[]
+  tags     Tag[]
+}
+
+// --- Application models ---
+
+enum SourceType {
+  URL
+  FILE
+}
+
+// FILE 動画の実体をどこに保存したか(アップロード時点のドライバをレコードごとに固定し、
+// 将来 STORAGE_DRIVER の設定を切り替えても既存ファイルの取得先を見失わないようにする)
+enum StorageDriver {
+  LOCAL
+  S3
+}
+
+model Video {
+  id     String @id @default(cuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  title      String
+  sourceType SourceType
+
+  // URL 登録時のみ使用。ユーザー内での重複登録を禁止する。
+  // URL は長さの上限が実質無いため Text で保持し、重複判定は urlHash (SHA-256) の
+  // ユニーク制約で行う(MySQL の InnoDB インデックスは utf8mb4 で 3072byte までのため
+  // 長いURLをそのままユニークインデックスにできない)。
+  url     String? @db.Text
+  urlHash String? @db.Char(64)
+
+  // FILE 登録時のみ使用
+  storageDriver    StorageDriver?
+  storageKey       String? // ドライバ内の保存パス/オブジェクトキー
+  originalFileName String?
+  mimeType         String?
+  fileSize         BigInt? // バイト数(容量制限の集計に使用)
+
+  durationSeconds Int? // 動画時間(任意入力。UI 上は分単位で入力し秒に変換して保存)
+  note            String? @db.Text
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime? // ゴミ箱(論理削除)。完全削除時にレコードごと削除する。
+
+  tags Tag[]
+
+  @@unique([userId, urlHash])
+  @@index([userId])
+  @@index([userId, deletedAt])
+}
+
+// 動画に自由に付けられるタグ。名前で一度使うとユーザーごとの辞書に登録され、
+// 以後は一覧のフィルターや登録時のサジェストに使われる。
+model Tag {
+  id     String @id @default(cuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  name String
+
+  createdAt DateTime @default(now())
+
+  videos Video[]
+
+  @@unique([userId, name])
+  @@index([userId])
+}
