@@ -1,5 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { Readable } from "node:stream";
+import { pipeline } from "node:stream/promises";
 import type { ReadableStream as NodeWebReadableStream } from "node:stream/web";
 
 import busboy from "busboy";
@@ -129,6 +130,7 @@ function parseUploadStream(
     let sawFile = false;
     let fileError: Error | null = null;
     let putPromise: Promise<void> | null = null;
+    let pendingKey: string | null = null;
 
     const bb = busboy({ headers: { "content-type": contentType }, limits: { files: 1 } });
 
@@ -149,6 +151,7 @@ function parseUploadStream(
         ? info.filename.slice(info.filename.lastIndexOf("."))
         : "";
       const key = `${userId}/${randomUUID()}${extension}`;
+      pendingKey = key;
 
       let size = 0;
       fileStream.on("data", (chunk: Buffer) => {
@@ -172,7 +175,17 @@ function parseUploadStream(
     });
     bb.on("error", reject);
 
-    Readable.fromWeb(request.body as unknown as NodeWebReadableStream<Uint8Array>).pipe(bb);
+    const source = Readable.fromWeb(request.body as unknown as NodeWebReadableStream<Uint8Array>);
+    // pipe() はソース側の error を dest(busboy) へ転送しないため、クライアントの回線切断等で
+    // ソースが error を出すとリスナー不在のまま投げられプロセスごと落ちかねない。
+    // pipeline() を使い、ソース/宛先いずれのエラーもここで確実に reject として処理する。
+    pipeline(source, bb).catch(async (error: unknown) => {
+      await (putPromise ?? Promise.resolve()).catch(() => {});
+      if (pendingKey && !uploaded) {
+        await storage.delete(pendingKey).catch(() => {});
+      }
+      reject(error instanceof Error ? error : new Error(String(error)));
+    });
   });
 }
 
@@ -195,12 +208,17 @@ async function createFileVideo(userId: string, request: Request) {
   const driver = getDefaultStorageDriver();
   const storage = getStorageAdapter(driver);
 
-  const { fields, uploaded, fileError, sawFile } = await parseUploadStream(
-    userId,
-    request,
-    contentType,
-    storage
-  );
+  let parsedUpload: ParsedUpload;
+  try {
+    parsedUpload = await parseUploadStream(userId, request, contentType, storage);
+  } catch (error) {
+    console.error("動画アップロードのストリーム処理でエラーが発生しました", error);
+    return Response.json(
+      { error: "アップロード中に通信エラーが発生しました。時間をおいて再度お試しください。" },
+      { status: 500 }
+    );
+  }
+  const { fields, uploaded, fileError, sawFile } = parsedUpload;
 
   if (!sawFile) {
     return Response.json({ error: "動画ファイルを選択してください" }, { status: 400 });
