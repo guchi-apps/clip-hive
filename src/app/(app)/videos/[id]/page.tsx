@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { TagBadge } from "@/components/TagBadge";
 import { VideoActions } from "@/components/VideoActions";
+import { CopyUrlButton } from "@/components/CopyUrlButton";
 
 export default async function VideoDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -63,12 +64,15 @@ export default async function VideoDetailPage({ params }: { params: Promise<{ id
 
           <div className="flex gap-2">
             {video.sourceType === "URL" && video.url && (
-              <Button asChild size="sm">
-                <Link href={video.url} target="_blank" rel="noopener noreferrer">
-                  <ExternalLink className="size-4" />
-                  ブラウザで開く
-                </Link>
-              </Button>
+              <>
+                <Button asChild size="sm">
+                  <Link href={video.url} target="_blank" rel="noopener noreferrer">
+                    <ExternalLink className="size-4" />
+                    ブラウザで開く
+                  </Link>
+                </Button>
+                <CopyUrlButton url={video.url} />
+              </>
             )}
             {video.sourceType === "FILE" && (
               <Button asChild size="sm" variant="outline">
