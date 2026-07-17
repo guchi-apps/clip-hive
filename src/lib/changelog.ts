@@ -21,6 +21,14 @@ export interface ChangelogEntry {
  */
 export const APP_CHANGELOG: ChangelogEntry[] = [
   {
+    version: "0.1.3",
+    date: "2026-07-17",
+    changes: [
+      "起動時に4桁のPINコードの入力を求めるロック画面を追加（ログイン状態でも30分以上操作がないと再度入力が必要）",
+      "設定画面からPINコードを変更できるように変更",
+    ],
+  },
+  {
     version: "0.1.2",
     date: "2026-07-17",
     changes: [
