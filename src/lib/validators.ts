@@ -1,5 +1,7 @@
 import { z } from "zod";
 
+export const PinSchema = z.string().regex(/^\d{4}$/, "4桁の数字を入力してください");
+
 const tagNamesSchema = z.array(z.string().trim().min(1).max(50)).max(30).optional();
 
 // 未入力(空文字)は null として保存する。タイトルは任意入力のため。

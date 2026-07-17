@@ -54,6 +54,12 @@ model User {
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
 
+  // PWA起動時の簡易PIN認証(issue #8)
+  pinHash           String?
+  pinSalt           String?
+  pinFailedAttempts Int       @default(0)
+  pinLockedUntil    DateTime?
+
   accounts Account[]
   sessions Session[]
   videos   Video[]
