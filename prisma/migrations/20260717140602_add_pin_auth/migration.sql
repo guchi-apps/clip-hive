@@ -1,0 +1,5 @@
+-- AlterTable
+ALTER TABLE `User` ADD COLUMN `pinFailedAttempts` INTEGER NOT NULL DEFAULT 0,
+    ADD COLUMN `pinHash` VARCHAR(191) NULL,
+    ADD COLUMN `pinLockedUntil` DATETIME(3) NULL,
+    ADD COLUMN `pinSalt` VARCHAR(191) NULL;

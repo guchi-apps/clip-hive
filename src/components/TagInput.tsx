@@ -2,6 +2,7 @@
 
 import { useRef, useState } from "react";
 import { X } from "lucide-react";
+import { Popover as PopoverPrimitive } from "radix-ui";
 
 import { cn } from "@/lib/utils";
 import type { TagDTO } from "@/types";
@@ -53,44 +54,55 @@ export function TagInput({
   }
 
   return (
-    <div className={cn("relative", className)}>
-      <div className="flex flex-wrap items-center gap-1.5 border-b border-input py-1 transition-colors focus-within:border-b-2 focus-within:border-ring">
-        {value.map((name) => (
-          <span
-            key={name}
-            className="inline-flex items-center gap-1 rounded-full bg-secondary px-2 py-0.5 text-xs font-medium text-secondary-foreground"
-          >
-            {name}
-            <button
-              type="button"
-              onClick={() => removeTag(name)}
-              aria-label={`${name} を削除`}
-              className="opacity-70 hover:opacity-100"
-            >
-              <X className="size-3" />
-            </button>
-          </span>
-        ))}
-        <input
-          id={id}
-          type="text"
-          value={inputValue}
-          onChange={(e) => setInputValue(e.target.value)}
-          onKeyDown={handleKeyDown}
-          onFocus={() => {
-            if (blurTimeoutRef.current) clearTimeout(blurTimeoutRef.current);
-            setOpen(true);
-          }}
-          onBlur={() => {
-            blurTimeoutRef.current = setTimeout(() => setOpen(false), 150);
-          }}
-          placeholder={value.length === 0 ? "タグを入力してEnter" : ""}
-          className="min-w-24 flex-1 bg-transparent px-0 py-0.5 text-sm outline-none placeholder:text-muted-foreground"
-        />
-      </div>
+    <PopoverPrimitive.Root open={open && filteredSuggestions.length > 0}>
+      <PopoverPrimitive.Anchor asChild>
+        <div className={cn("relative", className)}>
+          <div className="flex flex-wrap items-center gap-1.5 border-b border-input py-1 transition-colors focus-within:border-b-2 focus-within:border-ring">
+            {value.map((name) => (
+              <span
+                key={name}
+                className="inline-flex items-center gap-1 rounded-full bg-secondary px-2 py-0.5 text-xs font-medium text-secondary-foreground"
+              >
+                {name}
+                <button
+                  type="button"
+                  onClick={() => removeTag(name)}
+                  aria-label={`${name} を削除`}
+                  className="opacity-70 hover:opacity-100"
+                >
+                  <X className="size-3" />
+                </button>
+              </span>
+            ))}
+            <input
+              id={id}
+              type="text"
+              value={inputValue}
+              onChange={(e) => setInputValue(e.target.value)}
+              onKeyDown={handleKeyDown}
+              onFocus={() => {
+                if (blurTimeoutRef.current) clearTimeout(blurTimeoutRef.current);
+                setOpen(true);
+              }}
+              onBlur={() => {
+                blurTimeoutRef.current = setTimeout(() => setOpen(false), 150);
+              }}
+              placeholder={value.length === 0 ? "タグを入力してEnter" : ""}
+              className="min-w-24 flex-1 bg-transparent px-0 py-0.5 text-sm outline-none placeholder:text-muted-foreground"
+            />
+          </div>
+        </div>
+      </PopoverPrimitive.Anchor>
 
-      {open && filteredSuggestions.length > 0 && (
-        <div className="absolute z-50 mt-1 max-h-48 w-full min-w-48 overflow-y-auto rounded-lg bg-popover text-popover-foreground shadow-md ring-1 ring-foreground/10">
+      {/* 親の Card が overflow-hidden のため、候補一覧は Portal で描画してクリップされないようにする */}
+      <PopoverPrimitive.Portal>
+        <PopoverPrimitive.Content
+          align="start"
+          sideOffset={4}
+          onOpenAutoFocus={(e) => e.preventDefault()}
+          onCloseAutoFocus={(e) => e.preventDefault()}
+          className="z-50 max-h-48 w-(--radix-popover-trigger-width) min-w-48 overflow-y-auto rounded-lg bg-popover text-popover-foreground shadow-md ring-1 ring-foreground/10"
+        >
           {filteredSuggestions.map((tag) => (
             <button
               key={tag.id}
@@ -102,8 +114,8 @@ export function TagInput({
               {tag.name}
             </button>
           ))}
-        </div>
-      )}
-    </div>
+        </PopoverPrimitive.Content>
+      </PopoverPrimitive.Portal>
+    </PopoverPrimitive.Root>
   );
 }

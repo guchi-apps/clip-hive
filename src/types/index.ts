@@ -5,7 +5,7 @@ export type TagDTO = Tag;
 export interface VideoDTO {
   id: string;
   userId: string;
-  title: string;
+  title: string | null;
   sourceType: "URL" | "FILE";
   url: string | null;
   storageDriver: "LOCAL" | "S3" | null;

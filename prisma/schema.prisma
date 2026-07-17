@@ -54,6 +54,12 @@ model User {
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
 
+  // PWA起動時の簡易PIN認証(issue #8)
+  pinHash           String?
+  pinSalt           String?
+  pinFailedAttempts Int       @default(0)
+  pinLockedUntil    DateTime?
+
   accounts Account[]
   sessions Session[]
   videos   Video[]
@@ -79,7 +85,7 @@ model Video {
   userId String
   user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  title      String
+  title      String?
   sourceType SourceType
 
   // URL 登録時のみ使用。ユーザー内での重複登録を禁止する。

@@ -39,8 +39,8 @@ export function VideoList({
       tagFilter === "all" ? videos : videos.filter((v) => v.tags.some((t) => t.id === tagFilter));
 
     const sorted = [...filtered].sort((a, b) => {
-      const av = sortKey === "title" ? a.title : a[sortKey];
-      const bv = sortKey === "title" ? b.title : b[sortKey];
+      const av = sortKey === "title" ? (a.title ?? "") : a[sortKey];
+      const bv = sortKey === "title" ? (b.title ?? "") : b[sortKey];
       if (av < bv) return order === "asc" ? -1 : 1;
       if (av > bv) return order === "asc" ? 1 : -1;
       return 0;
@@ -118,7 +118,7 @@ function VideoRow({ video }: { video: VideoDTO }) {
           {video.sourceType === "URL" ? <Link2 className="size-4" /> : <Upload className="size-4" />}
         </span>
         <div className="min-w-0 flex-1">
-          <p className="truncate font-medium">{video.title}</p>
+          <p className="truncate font-medium">{video.title || "無題"}</p>
           <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
             <span>{formatDate(video.createdAt)}</span>
             {duration && (
