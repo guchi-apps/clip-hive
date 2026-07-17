@@ -136,7 +136,12 @@ export function VideoForm({ mode, video }: { mode: "create" | "edit"; video?: Vi
 
           <div className="flex flex-col gap-1.5">
             <Label htmlFor="title">タイトル</Label>
-            <Input id="title" value={title} onChange={(e) => setTitle(e.target.value)} required />
+            <Input
+              id="title"
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              placeholder="任意"
+            />
           </div>
 
           {sourceType === "URL" ? (

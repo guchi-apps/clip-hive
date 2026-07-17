@@ -34,7 +34,7 @@ export default async function TrashPage() {
                 {video.sourceType === "URL" ? <Link2 className="size-4" /> : <Upload className="size-4" />}
               </span>
               <div className="min-w-0 flex-1">
-                <p className="truncate font-medium">{video.title}</p>
+                <p className="truncate font-medium">{video.title || "無題"}</p>
                 <p className="text-xs text-muted-foreground">
                   削除日: {video.deletedAt && formatDate(video.deletedAt)}
                 </p>

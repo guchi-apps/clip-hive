@@ -232,7 +232,7 @@ async function createFileVideo(userId: string, request: Request) {
   }
 
   const parsed = VideoCommonSchema.safeParse({
-    title: fields.title ?? "",
+    title: fields.title,
     note: fields.note || undefined,
     durationMinutes: fields.durationMinutes ? Number(fields.durationMinutes) : undefined,
     tags: fields.tags ? (JSON.parse(fields.tags) as string[]) : undefined,

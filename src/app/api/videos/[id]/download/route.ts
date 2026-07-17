@@ -20,7 +20,7 @@ export async function GET(request: Request, { params }: Params) {
 
   const totalSize = Number(video.fileSize);
   const contentType = video.mimeType ?? "application/octet-stream";
-  const fileName = encodeURIComponent(video.originalFileName ?? video.title);
+  const fileName = encodeURIComponent(video.originalFileName ?? video.title ?? "video");
   // 既定はブラウザ内再生(inline)。明示的なダウンロード操作時のみ ?dl=1 を付けて保存させる。
   const { searchParams } = new URL(request.url);
   const disposition = searchParams.get("dl") === "1" ? "attachment" : "inline";

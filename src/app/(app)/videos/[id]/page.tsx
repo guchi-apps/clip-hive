@@ -26,7 +26,7 @@ export default async function VideoDetailPage({ params }: { params: Promise<{ id
   return (
     <div className="mx-auto max-w-2xl space-y-4">
       <div className="flex items-start justify-between gap-4">
-        <h1 className="text-xl font-semibold">{video.title}</h1>
+        <h1 className="text-xl font-semibold">{video.title || "無題"}</h1>
         {!video.deletedAt && <VideoActions videoId={video.id} />}
       </div>
 

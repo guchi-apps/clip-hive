@@ -79,7 +79,7 @@ model Video {
   userId String
   user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  title      String
+  title      String?
   sourceType SourceType
 
   // URL 登録時のみ使用。ユーザー内での重複登録を禁止する。
