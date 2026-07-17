@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { Readable } from "node:stream";
+import { Readable, Transform } from "node:stream";
 import { pipeline } from "node:stream/promises";
 import type { ReadableStream as NodeWebReadableStream } from "node:stream/web";
 
@@ -154,12 +154,23 @@ function parseUploadStream(
       pendingKey = key;
 
       let size = 0;
-      fileStream.on("data", (chunk: Buffer) => {
-        size += chunk.length;
+      // fileStream に直接 'data' リスナーを付けると即座に flowing モードへ切り替わってしまい、
+      // storage.put() 側の書き込みパイプが mkdir 等の非同期処理を挟んで少し遅れて確立するまでの
+      // 間に流れたデータが誰にも書き込まれず消える(=0バイトファイルになる)ことがある。
+      // カウントを書き込みパイプ自体を構成する Transform にすることで、バックプレッシャー経由で
+      // 安全にデータを受け渡す。
+      const counter = new Transform({
+        transform(chunk: Buffer, _encoding, callback) {
+          size += chunk.length;
+          callback(null, chunk);
+        },
+      });
+      pipeline(fileStream, counter).catch((error: unknown) => {
+        fileError = fileError ?? (error instanceof Error ? error : new Error(String(error)));
       });
 
       putPromise = storage
-        .put({ key, body: fileStream, contentType: info.mimeType })
+        .put({ key, body: counter, contentType: info.mimeType })
         .then(() => {
           uploaded = { key, fileName: info.filename, mimeType: info.mimeType, size };
         })
