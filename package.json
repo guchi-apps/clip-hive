@@ -1,6 +1,6 @@
 {
   "name": "clip-hive",
-  "version": "0.1.5",
+  "version": "0.2.0",
   "private": true,
   "engines": {
     "node": ">=20.19.0"
