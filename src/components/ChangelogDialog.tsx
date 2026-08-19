@@ -49,6 +49,21 @@ export function ChangelogDialog() {
                   </li>
                 ))}
               </ul>
+              {entry.usage && entry.usage.length > 0 ? (
+                <div className="mt-3 rounded-md bg-muted/50 p-3">
+                  <h4 className="mb-1.5 text-xs font-semibold">使い方</h4>
+                  <ol className="space-y-1.5 text-sm text-muted-foreground">
+                    {entry.usage.map((step, stepIndex) => (
+                      <li key={step} className="flex gap-2">
+                        <span className="shrink-0 tabular-nums text-muted-foreground/80">
+                          {stepIndex + 1}.
+                        </span>
+                        <span>{step}</span>
+                      </li>
+                    ))}
+                  </ol>
+                </div>
+              ) : null}
             </section>
           ))}
         </div>
