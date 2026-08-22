@@ -29,7 +29,9 @@ READMEに書かれていない判断基準だけを書く。
 
 `@claude` コメントを起点に、計画提示〜実装〜develop向けPR作成までを GitHub Actions 上で無人実行する。
 ワークフローの実体は `guchi-apps/issue-deck` にあり、このリポジトリの `.github/workflows/` には
-`uses:` で参照する薄い caller だけを置いている（`@workflows/v15`）。
+`uses:` で参照する薄い caller だけを置いている。参照する共有ワークフローのタグは
+`.github/workflows/` の `uses:` を正とする（このファイルにはタグ名を書かない。タグを上げるたびに
+書き換えが必要になり、齟齬が再発するため）。
 
 設計・運用の詳細は issue-deck 側を参照する。
 
@@ -143,3 +145,9 @@ GitHubのsecret/variableにのみ置く。
 
 **実行時の1Password呼び出しは行わない**（issue-deck#1307）。GitHub Actions は GitHubの
 secret/variable から値を取得する。
+
+**PII（個人のメールアドレス・実IP・実ホスト名）もシークレットと同じに扱う。** コードや設定ファイル
+だけでなく、Issue・Pull Request・コメント、および `*.example` などのサンプルも対象にする。
+サンプルには `you@example.com`・`example.com` のようなダミー値だけを書く。
+実際に `.env.local.example` の `ALLOWED_EMAIL` へ個人のGoogleアカウントを書いていたことがあり、
+全履歴の書き換えとGitHub Supportへのパージ依頼という重い作業を招いた（#51）。
