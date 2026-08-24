@@ -85,6 +85,21 @@ deploy/             # PM2 設定
 
 `STORAGE_QUOTA_GB`（既定20GB）で合計保存容量の上限を設定する。上限を超えるアップロードは拒否される。現時点では管理画面からの変更には対応しておらず、環境変数の変更のみで調整する。
 
+## 大きな動画のアップロード（時間・サイズの上限）
+
+30分尺の動画は数GBになり、転送だけで数分かかる。上限は次の4か所で決まり、**一番小さい値が実際の上限**になる（#5）。
+
+| 場所 | 設定 | 現在の値 |
+|---|---|---|
+| Node（`http.Server`） | `requestTimeout` | 30分（`deploy/http-timeouts.cjs`。`HTTP_REQUEST_TIMEOUT_MS` で変更可、`0` で無制限） |
+| Next.js（middleware） | `experimental.proxyClientMaxBodySize` | 5GB（`next.config.ts`） |
+| Apache（本番のみ） | `ProxyTimeout` / `LimitRequestBody` | `guchi-apps/vps` の VirtualHost で管理 |
+| アプリ | `STORAGE_QUOTA_GB` | 20GB |
+
+Node の `requestTimeout` は既定で5分（リクエスト開始からボディを受け取り終えるまでの上限）だが、`next start` にこれを設定するオプションは無く、`next.config.ts` にも項目が無い。カスタムサーバー（`server.js`）へ置き換えずに済ませるため、`deploy/http-timeouts.cjs` を `node --require` で読み込み、`http.createServer()` に `requestTimeout` を渡している。本番は PM2 の `node_args`（`deploy/ecosystem.config.js`）、開発は `NODE_OPTIONS`（`scripts/dev.sh`）から読み込む。
+
+**生成後に `server.requestTimeout = ...` と代入しても効かない**（値は読み出せるが、期限切れ判定には生成時に渡した値が使われる）。必ず `http.createServer()` のオプションとして渡すこと。
+
 ## PWA / オフライン対応
 
 `next-pwa` により、動画一覧・タグ一覧のAPIレスポンスをNetwork Firstでキャッシュしており、オフライン時も直近取得した一覧・タグ検索を閲覧できる。動画ファイル自体（ダウンロード・再生）はオンライン時のみ利用可能。
