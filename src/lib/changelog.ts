@@ -31,6 +31,13 @@ export interface ChangelogEntry {
  */
 export const APP_CHANGELOG: ChangelogEntry[] = [
   {
+    version: "1.0.1",
+    date: "2026-08-25",
+    changes: [
+      "デプロイ時のデータベース更新処理を安定化し、機能追加のたびに更新処理が失敗するリスクを解消しました。アプリの使い方や画面に変更はありません。",
+    ],
+  },
+  {
     version: "1.0.0",
     date: "2026-08-25",
     changes: [

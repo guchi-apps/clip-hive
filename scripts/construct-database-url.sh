@@ -26,6 +26,23 @@ if [[ -n "${GITHUB_ENV:-}" ]]; then
   echo "DATABASE_URL=${DATABASE_URL}" >> "$GITHUB_ENV"
 fi
 
+# マイグレーション専用ユーザー（DDL権限あり）。設定されている場合のみ構築する。
+#
+# 共有MariaDBの通常ユーザー（アプリ本体が使う）はDB単位のCRUD権限しか持たず、DDLを伴う
+# マイグレーションが `ALTER command denied`（MySQL 1142 → Prisma P3018）で落ちる（#86）。
+# テーブル追加だけのマイグレーションは通ってしまうため、列を足す変更を入れたときに初めて
+# 表面化する。アプリ本体（PM2プロセス）は引き続き DATABASE_URL＝通常ユーザーで動かす。
+if [[ -n "${MIGRATE_DB_USER:-}" && -n "${MIGRATE_DB_PASSWORD:-}" ]]; then
+  MIGRATE_DB_USER_ENC=$(urlencode "$MIGRATE_DB_USER")
+  MIGRATE_DB_PASSWORD_ENC=$(urlencode "$MIGRATE_DB_PASSWORD")
+  export MIGRATE_DATABASE_URL="mysql://${MIGRATE_DB_USER_ENC}:${MIGRATE_DB_PASSWORD_ENC}@${DB_HOST}:${DB_PORT}/${DB_NAME}"
+
+  if [[ -n "${GITHUB_ENV:-}" ]]; then
+    echo "::add-mask::${MIGRATE_DATABASE_URL}"
+    echo "MIGRATE_DATABASE_URL=${MIGRATE_DATABASE_URL}" >> "$GITHUB_ENV"
+  fi
+fi
+
 if [[ $# -eq 0 ]]; then
   exit 0
 fi
