@@ -35,6 +35,22 @@ READMEに書かれていない判断基準だけを書く。
 生成した `migration.sql` は `head -1` が `--` か `CREATE` / `ALTER` 等で始まっていることを
 確認してからコミットする。
 
+## 本番のマイグレーションはDB専用ユーザーで実行する
+
+共有MariaDBでアプリ本体が使うユーザー（`DB_USER`）は、DB単位の `SELECT` / `INSERT` / `UPDATE` /
+`DELETE` しか持たない。`ALTER` などのDDLは、DDL権限を持つマイグレーション専用ユーザー
+（organizationの共通シークレット `SHARED_DB_MIGRATE_USER` / `SHARED_DB_MIGRATE_PASSWORD`）でしか
+実行できない。`deploy.yml` は `prisma migrate deploy` の実行時だけ `MIGRATE_DATABASE_URL` へ
+差し替える（#86。`.env` に書く `DATABASE_URL` は通常ユーザーのままにする）。
+
+- テーブルを増やすだけのマイグレーションは通ってしまうことがあるため、**列を追加した最初の
+  デプロイで初めて** `ALTER command denied`（MySQL 1142 → Prisma P3018）として表面化する
+- 新しいDBを本番に作ったときは、通常ユーザーに加えてマイグレーション専用ユーザーへも同じDBの
+  GRANTを付けておく（手順は `guchi-apps/vps` の `docs/web-stack.md`）
+- 一度失敗すると `_prisma_migrations` に失敗記録が残り、以後のデプロイは P3009 で止まる。
+  原因を直したうえで、本番で `npx prisma migrate resolve --rolled-back <マイグレーション名>` を
+  実行してから再デプロイする
+
 ## マルチエージェント運用（GitHub Actions 無人実行）
 
 `@claude` コメントを起点に、計画提示〜実装〜develop向けPR作成までを GitHub Actions 上で無人実行する。
