@@ -11,6 +11,10 @@ export const pinCookieOptions = {
 
 let cachedKey: Promise<CryptoKey> | null = null;
 
+// AUTH_SECRET は旧 NextAuth のセッション署名鍵として導入したもので、Supabase Auth へ移行した
+// 現在はこのPIN検証済みCookieの署名にのみ使う。1Password・GitHub secret・本番 .env に
+// 登録済みのため名前は変えていない（改名すると本番の .env とsecretの入れ替えが必要になる）。
+
 function getKey(): Promise<CryptoKey> {
   if (!cachedKey) {
     const secret = process.env.AUTH_SECRET;

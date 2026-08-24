@@ -2,7 +2,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 
-import { auth } from "@/auth";
+import { getCurrentUser } from "@/lib/auth-user";
 import { APP_VERSION } from "@/lib/app-version";
 import { formatBytes } from "@/lib/format";
 import { getQuotaBytes, getUsedBytes } from "@/lib/quota";
@@ -10,12 +10,10 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { ChangelogDialog } from "@/components/ChangelogDialog";
 import { SignOutButton } from "@/components/SignOutButton";
-import { signOutAction } from "@/app/actions/auth";
 
 export default async function SettingsPage() {
-  const session = await auth();
-  const user = session?.user;
-  if (!user?.id) redirect("/auth/signin");
+  const user = await getCurrentUser();
+  if (!user) redirect("/auth/signin");
 
   const [usedBytes, quotaBytes] = await Promise.all([getUsedBytes(user.id), Promise.resolve(getQuotaBytes())]);
 
@@ -37,9 +35,7 @@ export default async function SettingsPage() {
               <p className="text-sm text-muted-foreground">{user.email}</p>
             </div>
           </div>
-          <form action={signOutAction}>
-            <SignOutButton />
-          </form>
+          <SignOutButton />
         </CardContent>
       </Card>
 

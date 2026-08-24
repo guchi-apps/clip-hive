@@ -1,6 +1,7 @@
-import { Video, FolderOpen } from "lucide-react";
-import { signInWithGoogleAction } from "@/app/actions/auth";
-import { HomeSignInButton } from "./home-signin-button";
+import Link from "next/link";
+import { ArrowRight, Video, FolderOpen } from "lucide-react";
+
+import { Button } from "@/components/ui/button";
 
 export default function Home() {
   return (
@@ -19,9 +20,13 @@ export default function Home() {
         動画URLと動画ファイルをひとまとめに管理。Googleアカウントでログインして始めましょう。
       </p>
 
-      <form action={signInWithGoogleAction.bind(null, undefined)}>
-        <HomeSignInButton />
-      </form>
+      {/* ハイドレーション前でも押せるよう、素のリンクでログインを開始する。 */}
+      <Button asChild size="lg" className="mt-8 rounded-full px-6">
+        <Link href="/auth/google?next=%2Fvideos" prefetch={false}>
+          <ArrowRight className="size-4" />
+          Googleでログイン
+        </Link>
+      </Button>
 
       <div className="mt-16 flex items-center gap-2 text-xs text-muted-foreground">
         <FolderOpen className="size-4" />
