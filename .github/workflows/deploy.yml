@@ -189,6 +189,10 @@ jobs:
       DB_PASSWORD: ${{ secrets.SHARED_DB_PASSWORD }}
       DB_PORT: ${{ secrets.SHARED_DB_PORT }}
       DB_USER: ${{ secrets.SHARED_DB_USER }}
+      # マイグレーション専用ユーザー（DDL権限あり）。DB_USERはCRUD権限のみで、列を追加する
+      # マイグレーションが `ALTER command denied` で落ちる（#86）。
+      MIGRATE_DB_USER: ${{ secrets.SHARED_DB_MIGRATE_USER }}
+      MIGRATE_DB_PASSWORD: ${{ secrets.SHARED_DB_MIGRATE_PASSWORD }}
       HOST: ${{ secrets.SERVER_HOST }}
       NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: ${{ vars.SUPABASE_PUBLISHABLE_KEY }}
       NEXT_PUBLIC_SUPABASE_URL: ${{ vars.SUPABASE_PROJECT_URL }}
@@ -241,6 +245,7 @@ jobs:
         uses: appleboy/ssh-action@v1
         env:
           DATABASE_URL: ${{ env.DATABASE_URL }}
+          MIGRATE_DATABASE_URL: ${{ env.MIGRATE_DATABASE_URL }}
           DB_USER: ${{ env.DB_USER }}
           DB_PASSWORD: ${{ env.DB_PASSWORD }}
           DB_HOST: ${{ env.DB_HOST }}
@@ -257,7 +262,7 @@ jobs:
           username: ${{ env.USERNAME }}
           key: ${{ env.SSH_PRIVATE_KEY }}
           port: ${{ env.SSH_PORT }}
-          envs: DATABASE_URL,DB_USER,DB_PASSWORD,DB_HOST,DB_PORT,DB_NAME,AUTH_SECRET,NEXT_PUBLIC_SUPABASE_URL,NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY,ALLOWED_GOOGLE_EMAILS,SIGNALY_LOGIN_WEBHOOK_URL,TARGET_DIR
+          envs: DATABASE_URL,MIGRATE_DATABASE_URL,DB_USER,DB_PASSWORD,DB_HOST,DB_PORT,DB_NAME,AUTH_SECRET,NEXT_PUBLIC_SUPABASE_URL,NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY,ALLOWED_GOOGLE_EMAILS,SIGNALY_LOGIN_WEBHOOK_URL,TARGET_DIR
           script: |
             set -euo pipefail
             cd "${TARGET_DIR}"
@@ -301,7 +306,9 @@ jobs:
             npm install --omit=dev --no-audit --prefer-offline
 
             echo "Applying database migrations..."
-            npx prisma migrate deploy
+            # .env（アプリ本体が読む）に書くのはCRUD権限のみの DATABASE_URL のままにし、
+            # DDLが要るこのコマンドの実行時だけマイグレーション用ユーザーへ差し替える（#86）。
+            DATABASE_URL="${MIGRATE_DATABASE_URL:-$DATABASE_URL}" npx prisma migrate deploy
 
             echo "Restarting PM2..."
             if command -v pm2 >/dev/null 2>&1; then
