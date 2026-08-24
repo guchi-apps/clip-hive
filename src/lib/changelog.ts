@@ -31,6 +31,13 @@ export interface ChangelogEntry {
  */
 export const APP_CHANGELOG: ChangelogEntry[] = [
   {
+    version: "0.3.2",
+    date: "2026-08-24",
+    changes: [
+      "サーバー再起動後にアプリへ一時的にアクセスできなくなることがあった不具合を修正しました。",
+    ],
+  },
+  {
     version: "0.3.1",
     date: "2026-08-22",
     changes: [
