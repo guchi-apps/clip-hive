@@ -146,6 +146,10 @@ GitHubのsecret/variableにのみ置く。
 **実行時の1Password呼び出しは行わない**（issue-deck#1307）。GitHub Actions は GitHubの
 secret/variable から値を取得する。
 
+**このリポジトリは public。** コード・コミット履歴・Issue・Pull Request・コメントに加え、
+GitHub Actions の実行ログとビルド成果物も誰でも閲覧・ダウンロードできる（#51）。以下は
+「漏らさない」ためのルールであると同時に、**書いた時点で公開される**という前提でもある。
+
 **PII（個人のメールアドレス・実IP・実ホスト名）もシークレットと同じに扱う。** コードや設定ファイル
 だけでなく、Issue・Pull Request・コメント、および `*.example` などのサンプルも対象にする。
 サンプルには `you@example.com`・`example.com` のようなダミー値だけを書く。
