@@ -25,11 +25,23 @@ READMEに書かれていない判断基準だけを書く。
 `npm run dev` は `scripts/dev.sh` 経由で `scripts/ensure-mysql.sh` を呼び、ローカルの MySQL/MariaDB と
 `.env.local` を要求する。**無人実行では使えない。**
 
+## マイグレーションを生成したとき
+
+`prisma migrate dev` / `prisma migrate diff --script` は生成したSQLを **stdout** へ書き出す。
+`prisma.config.ts` で読み込んでいる dotenv も v17 から案内文を stdout へ出すため、
+`quiet: true` を外すと案内文が `migration.sql` の1行目に混ざり、本番の
+`prisma migrate deploy` が構文エラー（MariaDB 1064 → P3018）で落ちる（#72）。
+
+生成した `migration.sql` は `head -1` が `--` か `CREATE` / `ALTER` 等で始まっていることを
+確認してからコミットする。
+
 ## マルチエージェント運用（GitHub Actions 無人実行）
 
 `@claude` コメントを起点に、計画提示〜実装〜develop向けPR作成までを GitHub Actions 上で無人実行する。
 ワークフローの実体は `guchi-apps/issue-deck` にあり、このリポジトリの `.github/workflows/` には
-`uses:` で参照する薄い caller だけを置いている（`@workflows/v15`）。
+`uses:` で参照する薄い caller だけを置いている。参照する共有ワークフローのタグは
+`.github/workflows/` の `uses:` を正とする（このファイルにはタグ名を書かない。タグを上げるたびに
+書き換えが必要になり、齟齬が再発するため）。
 
 設計・運用の詳細は issue-deck 側を参照する。
 
@@ -143,3 +155,13 @@ GitHubのsecret/variableにのみ置く。
 
 **実行時の1Password呼び出しは行わない**（issue-deck#1307）。GitHub Actions は GitHubの
 secret/variable から値を取得する。
+
+**このリポジトリは public。** コード・コミット履歴・Issue・Pull Request・コメントに加え、
+GitHub Actions の実行ログとビルド成果物も誰でも閲覧・ダウンロードできる（#51）。以下は
+「漏らさない」ためのルールであると同時に、**書いた時点で公開される**という前提でもある。
+
+**PII（個人のメールアドレス・実IP・実ホスト名）もシークレットと同じに扱う。** コードや設定ファイル
+だけでなく、Issue・Pull Request・コメント、および `*.example` などのサンプルも対象にする。
+サンプルには `you@example.com`・`example.com` のようなダミー値だけを書く。
+実際に `.env.local.example` の `ALLOWED_EMAIL` へ個人のGoogleアカウントを書いていたことがあり、
+全履歴の書き換えとGitHub Supportへのパージ依頼という重い作業を招いた（#51）。

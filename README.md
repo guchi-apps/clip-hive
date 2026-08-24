@@ -89,13 +89,28 @@ deploy/             # PM2 設定
 
 `next-pwa` により、動画一覧・タグ一覧のAPIレスポンスをNetwork Firstでキャッシュしており、オフライン時も直近取得した一覧・タグ検索を閲覧できる。動画ファイル自体（ダウンロード・再生）はオンライン時のみ利用可能。
 
+## デプロイに使う値の管理（1Password → GitHub）
+
+CI/CDワークフローは**実行時にはGitHubのsecret / variableからだけ値を取る**。1Passwordは「人が管理する唯一の正」として残し、実行時には呼び出さない（1Passwordサービスアカウントの日次レート制限がフリート全体のデプロイを止めたため。guchi-apps/issue-deck#1302 / #1307）。
+
+- どの値をGitHub側のどこから取るかは `.github/secrets-manifest.tsv` が正。`SCOPE` が `inherit` の8件はorganizationの共通値（`SHARED_DB_*` / `SERVER_*`）を参照し、`repo` の9件はこのリポジトリのsecret / variableに置く（`PORT` はマニフェストで管理せず `deploy.yml` に平文で持つ）
+- 1Password側の値を変えたときだけ `scripts/sync-github-secrets.sh` で同期する。`op` は**個人アカウントのセッション**で動かす（サービスアカウントでは書き込めない）
+
+```bash
+op signin
+scripts/sync-github-secrets.sh --dry-run
+scripts/sync-github-secrets.sh
+```
+
+同期はGitHubのActionsからも起こせる（`.github/workflows/sync-secrets.yml` を `workflow_dispatch` で実行）。
+
 ## デプロイ・運用（未実施のセットアップ）
 
 このリポジトリのコード・CI/CDワークフロー定義は用意済みだが、以下は実際の運用環境（1Password・VPS・DNS）への手動セットアップが必要（`_docs/README.md`「新規アプリ作成チェックリスト」参照）。
 
-- 1Password `apps` ボールトに `clip-hive` アイテムを作成し、`.github/deploy.env.tpl` / `.github/ci.env.tpl` が参照するフィールド（`db-name`, `auth-secret`, `google-client-id` 等）を登録する
+- 1Password `apps` ボールトに `clip-hive` アイテムを作成し、`.github/secrets-manifest.tsv` の `SOURCE` 列が参照するフィールド（`db-name`, `auth-secret`, `google-client-id` 等）を登録する
 - Signaly でアプリ用チャンネルを作成し `ci-webhook-url` を登録する
-- GitHub リポジトリの Secrets に `OP_SERVICE_ACCOUNT_TOKEN` を登録する
+- `scripts/sync-github-secrets.sh` を実行し、1Passwordの値をGitHubのsecret / variableへ投入する
 - `main` ブランチの Branch protection（CI必須）を設定する
 - VPS上に `/apps/clip-hive/` を作成し、Apache VirtualHost（本番ポート `3108`）を追加する
 - 本番用 Google OAuth クライアントを作成し、リダイレクトURIを登録する
