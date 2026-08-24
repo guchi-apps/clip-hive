@@ -1,14 +1,13 @@
 import { redirect } from "next/navigation";
 
-import { auth } from "@/auth";
+import { requireUserId } from "@/lib/auth-user";
 import { db } from "@/lib/db";
 import { getQuotaBytes, getUsedBytes } from "@/lib/quota";
 import { serializeVideo } from "@/lib/video-dto";
 import { VideoList } from "@/components/VideoList";
 
 export default async function VideosPage() {
-  const session = await auth();
-  const userId = session?.user?.id;
+  const userId = await requireUserId();
   if (!userId) redirect("/auth/signin");
 
   const [videos, tags, usedBytes, quotaBytes] = await Promise.all([

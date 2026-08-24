@@ -7,7 +7,15 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-// --- NextAuth.js / Auth.js v5 ---
+// --- 認証 ---
+//
+// ログインは Supabase Auth(Google)が担う。User.id は Video・Tag の外部キーに使われているため
+// 差し替えられないので、Supabase 側のユーザーIDは supabaseUserId に持つ。Supabase 移行前から
+// 存在するユーザーは NULL で、初回ログイン時にメールアドレスで紐付ける
+// (src/app/auth/callback/route.ts)。
+//
+// Account / Session / VerificationToken と User.emailVerified は旧 NextAuth(Auth.js)が使っていた
+// テーブル・列。移行の切り戻し余地を残すため今回は残す。
 
 model Account {
   id                String  @id @default(cuid())
@@ -46,7 +54,9 @@ model VerificationToken {
 }
 
 model User {
-  id            String    @id @default(cuid())
+  id             String  @id @default(cuid())
+  supabaseUserId String? @unique
+
   email         String    @unique
   emailVerified DateTime?
   name          String?

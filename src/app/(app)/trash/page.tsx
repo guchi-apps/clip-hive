@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
 import { Link2, Upload } from "lucide-react";
 
-import { auth } from "@/auth";
+import { requireUserId } from "@/lib/auth-user";
 import { db } from "@/lib/db";
 import { formatDate } from "@/lib/format";
 import { serializeVideo } from "@/lib/video-dto";
@@ -9,8 +9,7 @@ import { Card } from "@/components/ui/card";
 import { TrashActions } from "@/components/TrashActions";
 
 export default async function TrashPage() {
-  const session = await auth();
-  const userId = session?.user?.id;
+  const userId = await requireUserId();
   if (!userId) redirect("/auth/signin");
 
   const records = await db.video.findMany({

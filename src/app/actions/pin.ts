@@ -4,7 +4,7 @@ import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 
 import { db } from "@/lib/db";
-import { requireUserId } from "@/lib/auth-user";
+import { getCurrentUser } from "@/lib/auth-user";
 import { generateSalt, hashPin, verifyPin } from "@/lib/pin";
 import { PIN_COOKIE_NAME, pinCookieOptions, signPinCookie } from "@/lib/pin-cookie";
 import { PinSchema } from "@/lib/validators";
@@ -16,8 +16,10 @@ function resolveRedirectTarget(callbackUrl: string | undefined): string {
   return callbackUrl && callbackUrl.startsWith("/") ? callbackUrl : "/videos";
 }
 
-async function setPinVerifiedCookie(userId: string) {
-  const value = await signPinCookie(userId);
+// PIN検証済みCookieの署名には、proxy.ts が照合できる Supabase のユーザーIDを使う。
+// proxy.ts は Edge 実行のため DB を引けず、clip-hive 内部のユーザーIDを知らない。
+async function setPinVerifiedCookie(supabaseUserId: string) {
+  const value = await signPinCookie(supabaseUserId);
   const store = await cookies();
   store.set(PIN_COOKIE_NAME, value, pinCookieOptions);
 }
@@ -27,8 +29,9 @@ export async function setPinAction(
   _prevState: string | null,
   formData: FormData,
 ): Promise<string | null> {
-  const userId = await requireUserId();
-  if (!userId) redirect("/auth/signin");
+  const currentUser = await getCurrentUser();
+  if (!currentUser) redirect("/auth/signin");
+  const userId = currentUser.id;
 
   const pin = formData.get("pin");
   const confirmPin = formData.get("confirmPin");
@@ -44,7 +47,7 @@ export async function setPinAction(
     data: { pinHash: hash, pinSalt: salt, pinFailedAttempts: 0, pinLockedUntil: null },
   });
 
-  await setPinVerifiedCookie(userId);
+  await setPinVerifiedCookie(currentUser.supabaseUserId);
   redirect(resolveRedirectTarget(callbackUrl));
 }
 
@@ -53,8 +56,9 @@ export async function verifyPinAction(
   _prevState: string | null,
   formData: FormData,
 ): Promise<string | null> {
-  const userId = await requireUserId();
-  if (!userId) redirect("/auth/signin");
+  const currentUser = await getCurrentUser();
+  if (!currentUser) redirect("/auth/signin");
+  const userId = currentUser.id;
 
   const user = await db.user.findUnique({
     where: { id: userId },
@@ -87,13 +91,14 @@ export async function verifyPinAction(
   }
 
   await db.user.update({ where: { id: userId }, data: { pinFailedAttempts: 0, pinLockedUntil: null } });
-  await setPinVerifiedCookie(userId);
+  await setPinVerifiedCookie(currentUser.supabaseUserId);
   redirect(resolveRedirectTarget(callbackUrl));
 }
 
 export async function changePinAction(_prevState: string | null, formData: FormData): Promise<string | null> {
-  const userId = await requireUserId();
-  if (!userId) redirect("/auth/signin");
+  const currentUser = await getCurrentUser();
+  if (!currentUser) redirect("/auth/signin");
+  const userId = currentUser.id;
 
   const user = await db.user.findUnique({
     where: { id: userId },
@@ -122,6 +127,6 @@ export async function changePinAction(_prevState: string | null, formData: FormD
     data: { pinHash: hash, pinSalt: salt, pinFailedAttempts: 0, pinLockedUntil: null },
   });
 
-  await setPinVerifiedCookie(userId);
+  await setPinVerifiedCookie(currentUser.supabaseUserId);
   return "PINを変更しました";
 }
