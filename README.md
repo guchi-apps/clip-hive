@@ -7,7 +7,7 @@
 - Next.js 16 (App Router) + React 19 + TypeScript
 - Tailwind CSS v4 + shadcn/ui (Radix UI)
 - Prisma + MariaDB/MySQL
-- NextAuth.js v5 (Google OAuth、本人のみアクセス可)
+- Supabase Auth (Google OAuth、本人のみアクセス可)
 - next-pwa (PWA対応)
 - AWS SDK for S3 (`@aws-sdk/client-s3` / `@aws-sdk/lib-storage`) — 外部ストレージ(S3互換)保存用
 
@@ -23,7 +23,7 @@
 ```bash
 npm install
 
-# .env.local を作成（DB/Auth/Google/Storage の値を編集する）
+# .env.local を作成（DB/Supabase/Storage の値を編集する）
 npm run env:init
 
 # .env.local の DATABASE_URL に基づき DB・ユーザーを作成
@@ -36,7 +36,32 @@ npm run db:migrate:dev
 npm run dev
 ```
 
-Google OAuth を使う場合は、開発用の Google Cloud クライアントを別途用意し、承認済みリダイレクト URI に `http://localhost:3000/api/auth/callback/google` を登録する。
+### 認証（Supabase Auth + Google）
+
+ログインは他アプリと共通の Supabase プロジェクト経由の Google OAuth で行う。開発用と本番用で Supabase プロジェクトを分けているため、ローカルでは**開発用**プロジェクトの値を `.env.local` に直接書く（1Password への依存を避けるため）。
+
+| 環境変数 | 内容 |
+| --- | --- |
+| `NEXT_PUBLIC_SUPABASE_URL` | Supabase の project-url |
+| `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` | Supabase の publishable key（`service_role` キーは使わない・置かない） |
+| `ALLOWED_GOOGLE_EMAILS` | ログインを許可する Google アカウント（カンマ区切り）。**未設定なら全員拒否** |
+| `AUTH_SECRET` | PWA起動時の簡易PIN認証で使う Cookie の署名鍵 |
+
+開発用 Supabase プロジェクトの Redirect URLs に `http://localhost:3000/auth/callback` を登録しておく（本番は `https://<本番ドメイン>/auth/callback`）。
+
+認証まわりの実体は次の通り。
+
+| パス | 役割 |
+| --- | --- |
+| `src/proxy.ts` → `src/lib/supabase/proxy-session.ts` | 全リクエストでセッションを更新・検証し、未ログインを `/auth/signin` へ差し戻す。PIN認証もここで判定する |
+| `src/app/auth/google/route.ts` | Google ログインを開始する（サーバー側で認可URLを組み立てて302） |
+| `src/app/auth/callback/route.ts` | 認可コードをセッションへ交換し、許可メール判定と `User.supabaseUserId` の紐付けを行う |
+| `src/app/auth/signout/route.ts` | ログアウト（POST） |
+| `src/lib/auth-user.ts` | `getCurrentUser()` / `requireUserId()`。proxy が検証済みの Supabase ユーザーIDをヘッダー経由で受け取り、DB のユーザーを引く |
+
+JWT の検証は `supabase.auth.getUser()` が Supabase 側で行う（自前でデコードしない）。ログイン後の画面はすべて `src/proxy.ts` の背後にあり、`/api/*` は各ルートハンドラが `requireUserId()` で 401 を返す。
+
+PWA起動時の簡易PIN認証（#8）の検証済みCookieは、**Supabase のユーザーID**で署名する。判定を行う `src/proxy.ts` は Edge で動くため Prisma を呼べず、clip-hive 内部の `User.id` を知り得ないため。Cookie を発行する `src/app/actions/pin.ts` 側も `getCurrentUser().supabaseUserId` を渡すこと（`user.id` を渡すと proxy 側の照合が必ず失敗し、PIN入力から先へ進めなくなる）。
 
 ## 主なスクリプト
 
@@ -85,6 +110,21 @@ deploy/             # PM2 設定
 
 `STORAGE_QUOTA_GB`（既定20GB）で合計保存容量の上限を設定する。上限を超えるアップロードは拒否される。現時点では管理画面からの変更には対応しておらず、環境変数の変更のみで調整する。
 
+## 大きな動画のアップロード（時間・サイズの上限）
+
+30分尺の動画は数GBになり、転送だけで数分かかる。上限は次の4か所で決まり、**一番小さい値が実際の上限**になる（#5）。
+
+| 場所 | 設定 | 現在の値 |
+|---|---|---|
+| Node（`http.Server`） | `requestTimeout` | 30分（`deploy/http-timeouts.cjs`。`HTTP_REQUEST_TIMEOUT_MS` で変更可、`0` で無制限） |
+| Next.js（middleware） | `experimental.proxyClientMaxBodySize` | 5GB（`next.config.ts`） |
+| Apache（本番のみ） | `ProxyTimeout` / `LimitRequestBody` | `guchi-apps/vps` の VirtualHost で管理 |
+| アプリ | `STORAGE_QUOTA_GB` | 20GB |
+
+Node の `requestTimeout` は既定で5分（リクエスト開始からボディを受け取り終えるまでの上限）だが、`next start` にこれを設定するオプションは無く、`next.config.ts` にも項目が無い。カスタムサーバー（`server.js`）へ置き換えずに済ませるため、`deploy/http-timeouts.cjs` を `node --require` で読み込み、`http.createServer()` に `requestTimeout` を渡している。本番は PM2 の `node_args`（`deploy/ecosystem.config.js`）、開発は `NODE_OPTIONS`（`scripts/dev.sh`）から読み込む。
+
+**生成後に `server.requestTimeout = ...` と代入しても効かない**（値は読み出せるが、期限切れ判定には生成時に渡した値が使われる）。必ず `http.createServer()` のオプションとして渡すこと。
+
 ## PWA / オフライン対応
 
 `next-pwa` により、動画一覧・タグ一覧のAPIレスポンスをNetwork Firstでキャッシュしており、オフライン時も直近取得した一覧・タグ検索を閲覧できる。動画ファイル自体（ダウンロード・再生）はオンライン時のみ利用可能。
@@ -93,7 +133,7 @@ deploy/             # PM2 設定
 
 CI/CDワークフローは**実行時にはGitHubのsecret / variableからだけ値を取る**。1Passwordは「人が管理する唯一の正」として残し、実行時には呼び出さない（1Passwordサービスアカウントの日次レート制限がフリート全体のデプロイを止めたため。guchi-apps/issue-deck#1302 / #1307）。
 
-- どの値をGitHub側のどこから取るかは `.github/secrets-manifest.tsv` が正。`SCOPE` が `inherit` の8件はorganizationの共通値（`SHARED_DB_*` / `SERVER_*`）を参照し、`repo` の9件はこのリポジトリのsecret / variableに置く（`PORT` はマニフェストで管理せず `deploy.yml` に平文で持つ）
+- どの値をGitHub側のどこから取るかは `.github/secrets-manifest.tsv` が正。`SCOPE` が `inherit` の11件はorganizationの共通値（`SHARED_DB_*` / `SERVER_*` / `SUPABASE_*` / `SIGNALY_WEBHOOK_URL`）を参照し、`repo` の6件はこのリポジトリのsecret / variableに置く（`PORT` はマニフェストで管理せず `deploy.yml` に平文で持つ）
 - 1Password側の値を変えたときだけ `scripts/sync-github-secrets.sh` で同期する。`op` は**個人アカウントのセッション**で動かす（サービスアカウントでは書き込めない）
 
 ```bash
@@ -108,9 +148,9 @@ scripts/sync-github-secrets.sh
 
 このリポジトリのコード・CI/CDワークフロー定義は用意済みだが、以下は実際の運用環境（1Password・VPS・DNS）への手動セットアップが必要（`_docs/README.md`「新規アプリ作成チェックリスト」参照）。
 
-- 1Password `apps` ボールトに `clip-hive` アイテムを作成し、`.github/secrets-manifest.tsv` の `SOURCE` 列が参照するフィールド（`db-name`, `auth-secret`, `google-client-id` 等）を登録する
+- 1Password `apps` ボールトに `clip-hive` アイテムを作成し、`.github/secrets-manifest.tsv` の `SOURCE` 列が参照するフィールド（`db-name`, `auth-secret`, `allowed-google-emails` 等）を登録する
 - Signaly でアプリ用チャンネルを作成し `ci-webhook-url` を登録する
 - `scripts/sync-github-secrets.sh` を実行し、1Passwordの値をGitHubのsecret / variableへ投入する
 - `main` ブランチの Branch protection（CI必須）を設定する
 - VPS上に `/apps/clip-hive/` を作成し、Apache VirtualHost（本番ポート `3108`）を追加する
-- 本番用 Google OAuth クライアントを作成し、リダイレクトURIを登録する
+- 本番用 Supabase プロジェクトの Redirect URLs に `https://<本番ドメイン>/auth/callback` を登録する

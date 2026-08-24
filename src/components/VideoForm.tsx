@@ -15,15 +15,26 @@ import { cn } from "@/lib/utils";
 import { secondsToMinutes } from "@/lib/duration";
 import type { TagDTO, VideoDTO } from "@/types";
 
+// 大容量アップロードは、アプリまで届かずリバースプロキシ側で打ち切られることがある
+// （サイズ上限なら413、転送に時間がかかりすぎた場合は408/504）。その応答はJSONではなく
+// HTMLなので、本文からではなくステータスコードから理由を伝える。
+function errorByStatus(status: number): string {
+  if (status === 413) return "ファイルサイズが大きすぎるため、アップロードできませんでした";
+  if (status === 408 || status === 504) {
+    return "アップロードに時間がかかりすぎたため、接続が切れました。通信環境の良い場所で再度お試しください";
+  }
+  return "エラーが発生しました";
+}
+
 async function extractError(res: Response): Promise<string> {
   try {
     const data = await res.json();
     if (typeof data.error === "string") return data.error;
     const formErrors = data?.error?.formErrors ?? data?.error?.fieldErrors;
     if (formErrors) return "入力内容を確認してください";
-    return "エラーが発生しました";
+    return errorByStatus(res.status);
   } catch {
-    return "エラーが発生しました";
+    return errorByStatus(res.status);
   }
 }
 
@@ -86,7 +97,15 @@ export function VideoForm({ mode, video }: { mode: "create" | "edit"; video?: Vi
       if (note) form.set("note", note);
       if (durationMinutes) form.set("durationMinutes", durationMinutes);
       form.set("tags", JSON.stringify(tags));
-      res = await fetch("/api/videos", { method: "POST", body: form });
+      try {
+        res = await fetch("/api/videos", { method: "POST", body: form });
+      } catch {
+        // 転送中に接続が切れると fetch 自体が失敗する（"Failed to fetch"）。
+        // そのままでは何が起きたのか分からないため、言い換えて伝える。
+        throw new Error(
+          "アップロード中に接続が切れました。通信環境の良い場所で、時間をおいて再度お試しください"
+        );
+      }
     }
     if (!res.ok) throw new Error(await extractError(res));
     const created = await res.json();

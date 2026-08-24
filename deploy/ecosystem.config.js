@@ -15,7 +15,14 @@ module.exports = {
       // （1プロセスあたり約1006MB）ではGCが働かず各プロセスが数百MBを抱え込む。
       // 上限を明示して早めにGCさせる。max_memory_restart は暴走時の保険。
       // 詳細: https://github.com/guchi-apps/vps/issues/62
-      node_args: "--max-old-space-size=128",
+      // deploy/http-timeouts.cjs: Nodeの既定のrequestTimeout(5分)では30分尺の動画の
+      // アップロードが転送途中で切られるため、生成されるhttp.Serverの上限を延ばす
+      // （guchi-apps/clip-hive#5）。
+      node_args: [
+        "--max-old-space-size=128",
+        "--require",
+        path.resolve(__dirname, "http-timeouts.cjs"),
+      ],
       max_memory_restart: "320M",
       // PM2 は max_memory_restart による再起動やサーバー再起動後の resurrect で
       // プロセスを起動し直す際、pm2 start 時に指定した --env production を失って

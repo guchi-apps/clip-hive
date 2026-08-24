@@ -115,7 +115,7 @@ Status = 今どこにいるか、Label = どんな性質・条件があるか、
 
 以下に該当する変更は自動マージせず `00.check-user` を付与してユーザーの確認を待つ。
 
-- 認証・認可（`src/auth.ts`・`src/auth.config.ts`・`src/proxy.ts`）
+- 認証・認可（`src/proxy.ts`・`src/lib/supabase/**`・`src/app/auth/**`・`src/lib/auth-user.ts`・`src/lib/allowed-users.ts`）
 - DBスキーマ変更・マイグレーション（`prisma/migrations/**`）
 - 本番環境の設定（`deploy/**`）
 - GitHub Actionsやデプロイ設定（`.github/workflows/**`）

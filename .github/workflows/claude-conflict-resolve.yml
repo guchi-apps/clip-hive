@@ -66,7 +66,7 @@ on:
 
 jobs:
   conflict-resolve:
-    uses: guchi-apps/issue-deck/.github/workflows/reusable-claude-conflict-resolve.yml@workflows/v25
+    uses: guchi-apps/issue-deck/.github/workflows/reusable-claude-conflict-resolve.yml@workflows/v26
     with:
       # clip-hiveはNext.js + Prisma + MariaDB/MySQLのため node-db。
       runtime-setup: node-db
@@ -86,12 +86,11 @@ jobs:
       # 書かない（実値は secrets: inherit 経由で渡る）。
       build-env: |
         DATABASE_URL=mysql://placeholder:placeholder@127.0.0.1:3306/app_clip_hive
-        AUTH_URL=http://localhost:3000
         AUTH_SECRET=ci-placeholder-secret
-        GOOGLE_CLIENT_ID=ci-placeholder
-        GOOGLE_CLIENT_SECRET=ci-placeholder
+        NEXT_PUBLIC_SUPABASE_URL=https://ci-placeholder.supabase.co
+        NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=ci-placeholder
       # 上の uses: と同じタグを指定する。
-      prompts-ref: workflows/v25
+      prompts-ref: workflows/v26
     # CLAUDE_CODE_OAUTH_TOKEN・WORKFLOW_PAT・PROGRESS_REPORT_SECRETを呼ばれる側へ渡す。
     secrets: inherit
     permissions:
