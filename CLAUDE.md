@@ -25,6 +25,16 @@ READMEに書かれていない判断基準だけを書く。
 `npm run dev` は `scripts/dev.sh` 経由で `scripts/ensure-mysql.sh` を呼び、ローカルの MySQL/MariaDB と
 `.env.local` を要求する。**無人実行では使えない。**
 
+## マイグレーションを生成したとき
+
+`prisma migrate dev` / `prisma migrate diff --script` は生成したSQLを **stdout** へ書き出す。
+`prisma.config.ts` で読み込んでいる dotenv も v17 から案内文を stdout へ出すため、
+`quiet: true` を外すと案内文が `migration.sql` の1行目に混ざり、本番の
+`prisma migrate deploy` が構文エラー（MariaDB 1064 → P3018）で落ちる（#72）。
+
+生成した `migration.sql` は `head -1` が `--` か `CREATE` / `ALTER` 等で始まっていることを
+確認してからコミットする。
+
 ## マルチエージェント運用（GitHub Actions 無人実行）
 
 `@claude` コメントを起点に、計画提示〜実装〜develop向けPR作成までを GitHub Actions 上で無人実行する。
