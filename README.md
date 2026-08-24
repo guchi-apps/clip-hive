@@ -61,6 +61,8 @@ npm run dev
 
 JWT の検証は `supabase.auth.getUser()` が Supabase 側で行う（自前でデコードしない）。ログイン後の画面はすべて `src/proxy.ts` の背後にあり、`/api/*` は各ルートハンドラが `requireUserId()` で 401 を返す。
 
+PWA起動時の簡易PIN認証（#8）の検証済みCookieは、**Supabase のユーザーID**で署名する。判定を行う `src/proxy.ts` は Edge で動くため Prisma を呼べず、clip-hive 内部の `User.id` を知り得ないため。Cookie を発行する `src/app/actions/pin.ts` 側も `getCurrentUser().supabaseUserId` を渡すこと（`user.id` を渡すと proxy 側の照合が必ず失敗し、PIN入力から先へ進めなくなる）。
+
 ## 主なスクリプト
 
 | コマンド | 内容 |
