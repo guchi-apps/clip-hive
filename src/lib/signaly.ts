@@ -21,6 +21,9 @@ export async function notifySignalyLogin(params: {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
+        // 通知先はログイン通知用の共通チャンネル。どのアプリのログインかはSignaly側で
+        // source を見て判別するため、リポジトリ名を送る（guchi-apps/issue-deck#2287）。
+        source: "clip-hive",
         embeds: [{ title: "🔐 clip-hive にログイン", color: 5763719, fields }],
       }),
     });
