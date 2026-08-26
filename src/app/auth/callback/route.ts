@@ -41,9 +41,12 @@ export async function GET(request: NextRequest) {
 
   await linkSupabaseUser({ supabaseUserId: user.id, email: email!, name, image });
 
-  const ip =
-    request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ?? request.headers.get("x-real-ip");
-  await notifySignalyLogin({ email, ip });
+  // 接続元IP・User-Agent は notifySignalyLogin がリクエストヘッダーから拾う
+  await notifySignalyLogin({
+    email,
+    name,
+    provider: user.app_metadata?.provider ?? null,
+  });
 
   return NextResponse.redirect(`${origin}${next}`);
 }
