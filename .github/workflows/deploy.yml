@@ -166,7 +166,7 @@ jobs:
             deploy \
             scripts/construct-database-url.sh \
             scripts/update-env-file.sh \
-            next.config.ts
+            next.config.mjs
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
@@ -273,7 +273,7 @@ jobs:
             PORT=3108
 
             echo "Cleaning up old release files..."
-            rm -rf .next public package.json package-lock.json prisma deploy next.config.ts
+            rm -rf .next public package.json package-lock.json prisma deploy next.config.mjs next.config.ts
 
             echo "Extracting archive..."
             tar -xzf deploy.tar.gz
