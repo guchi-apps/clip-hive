@@ -31,6 +31,13 @@ export interface ChangelogEntry {
  */
 export const APP_CHANGELOG: ChangelogEntry[] = [
   {
+    version: "1.0.15",
+    date: "2026-09-21",
+    changes: [
+      "（変更内容を追記してください）",
+    ],
+  },
+  {
     version: "1.0.14",
     date: "2026-09-21",
     changes: [
