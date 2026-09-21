@@ -4,13 +4,15 @@
  *
  * リリース自動化ワークフロー（release-develop-to-main.yml）は、developへ取り込まれた
  * 差分から利用者向けの更新履歴を生成し、環境変数 RELEASE_CHANGELOG で渡してくる。
- * 設定されていればその内容を changes へ反映する。未設定・空のとき（ローカルで
- * `npm version` を叩いた場合など）は、従来どおり手で埋めるための枠だけを作る。
+ * 設定されていればその内容を changes へ反映する。未設定・空のとき（画面で体感できる変化が
+ * 無いリリースや、ローカルで `npm version` を叩いた場合など）は、エントリを作らない
+ * （バージョンだけが上がる）。仮の文言だけの版が更新履歴に残り続けないようにするため。
  *
  * あわせて利用者向けの使い方（操作手順）が RELEASE_USAGE で渡ってくる（guchi-apps/issue-deck#1729）。
  * RELEASE_CHANGELOG が「何が変わったか」、RELEASE_USAGE が「どう使うか」で読む場面が違うため、
  * changes へ混ぜず usage という別の項目として持たせる。画面で使える変化が無いリリースでは
  * 生成されず空文字で渡るので、そのときは usage の項目ごと出力しない。
+ * changes が空のときは usage だけが渡っていてもエントリを作らない。
  */
 import { readFileSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
@@ -18,8 +20,6 @@ import { fileURLToPath } from "node:url";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const changelogPath = join(__dirname, "../src/lib/changelog.ts");
-
-export const CHANGELOG_PLACEHOLDER = "（変更内容を追記してください）";
 
 /**
  * RELEASE_CHANGELOG の文面を changes 配列へ整形する。
@@ -81,7 +81,12 @@ export function insertChangelogEntry(
     throw new Error("APP_CHANGELOG marker not found in changelog.ts");
   }
 
-  const items = changes.length > 0 ? changes : [CHANGELOG_PLACEHOLDER];
+  // 変更内容が空のときはエントリを作らない（RELEASE_USAGE だけあっても作らない）。
+  // マーカーの検査より後に置き、マーカーが見つからないときの失敗は従来どおり残す。
+  if (changes.length === 0) {
+    return { content, inserted: false };
+  }
+
   const insertAt = index + marker.length;
   // 使い方は空のとき項目ごと省く（空の見出しだけが残ると書き漏らしに見えるため）。
   const usageBlock =
@@ -96,7 +101,7 @@ ${usage.map((step) => `      "${escapeForTs(step)}",`).join("\n")}
     version: "${version}",
     date: "${date}",
     changes: [
-${items.map((item) => `      "${escapeForTs(item)}",`).join("\n")}
+${changes.map((item) => `      "${escapeForTs(item)}",`).join("\n")}
     ],${usageBlock}
   },`;
 
@@ -130,19 +135,19 @@ function main() {
   );
 
   if (!inserted) {
-    console.log(`changelog.ts already has version ${version}; skipping.`);
+    const reason =
+      changes.length === 0
+        ? "no release changelog was given"
+        : `changelog.ts already has version ${version}`;
+    console.log(`${reason}; skipping changelog entry for v${version}.`);
     return;
   }
 
   writeFileSync(changelogPath, content, "utf8");
   const usageNote = usage.length > 0 ? `, ${usage.length} usage step(s)` : "";
-  if (changes.length > 0) {
-    console.log(
-      `Added changelog entry for v${version} (${changes.length} change(s)${usageNote})`
-    );
-  } else {
-    console.log(`Added changelog stub for v${version}${usageNote}`);
-  }
+  console.log(
+    `Added changelog entry for v${version} (${changes.length} change(s)${usageNote})`
+  );
 }
 
 const isMain =
