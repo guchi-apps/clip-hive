@@ -117,11 +117,11 @@ deploy/             # PM2 設定
 | 場所 | 設定 | 現在の値 |
 |---|---|---|
 | Node（`http.Server`） | `requestTimeout` | 30分（`deploy/http-timeouts.cjs`。`HTTP_REQUEST_TIMEOUT_MS` で変更可、`0` で無制限） |
-| Next.js（middleware） | `experimental.proxyClientMaxBodySize` | 5GB（`next.config.ts`） |
+| Next.js（middleware） | `experimental.proxyClientMaxBodySize` | 5GB（`next.config.mjs`） |
 | Apache（本番のみ） | `ProxyTimeout` / `LimitRequestBody` | `guchi-apps/vps` の VirtualHost で管理 |
 | アプリ | `STORAGE_QUOTA_GB` | 20GB |
 
-Node の `requestTimeout` は既定で5分（リクエスト開始からボディを受け取り終えるまでの上限）だが、`next start` にこれを設定するオプションは無く、`next.config.ts` にも項目が無い。カスタムサーバー（`server.js`）へ置き換えずに済ませるため、`deploy/http-timeouts.cjs` を `node --require` で読み込み、`http.createServer()` に `requestTimeout` を渡している。本番は PM2 の `node_args`（`deploy/ecosystem.config.js`）、開発は `NODE_OPTIONS`（`scripts/dev.sh`）から読み込む。
+Node の `requestTimeout` は既定で5分（リクエスト開始からボディを受け取り終えるまでの上限）だが、`next start` にこれを設定するオプションは無く、`next.config.mjs` にも項目が無い。カスタムサーバー（`server.js`）へ置き換えずに済ませるため、`deploy/http-timeouts.cjs` を `node --require` で読み込み、`http.createServer()` に `requestTimeout` を渡している。本番は PM2 の `node_args`（`deploy/ecosystem.config.js`）、開発は `NODE_OPTIONS`（`scripts/dev.sh`）から読み込む。
 
 **生成後に `server.requestTimeout = ...` と代入しても効かない**（値は読み出せるが、期限切れ判定には生成時に渡した値が使われる）。必ず `http.createServer()` のオプションとして渡すこと。
 

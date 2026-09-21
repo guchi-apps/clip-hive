@@ -1,4 +1,7 @@
-import type { NextConfig } from "next";
+// @ts-check
+// 拡張子を .mjs にしているのは、next.config.ts だと本番の `next start` が設定ファイルを
+// トランスパイルするためだけに SWC のネイティブバイナリを読み込み、常駐メモリが増えるため。
+// TypeScript (.ts) に戻さないこと。型は JSDoc と `// @ts-check` で付けている。
 import withPWAInit from "@ducanh2912/next-pwa";
 
 const devAllowedOrigins = (
@@ -7,7 +10,8 @@ const devAllowedOrigins = (
     .filter(Boolean) ?? []
 );
 
-const nextConfig: NextConfig = {
+/** @type {import("next").NextConfig} */
+const nextConfig = {
   allowedDevOrigins: devAllowedOrigins,
   images: {
     remotePatterns: [{ protocol: "https", hostname: "lh3.googleusercontent.com" }],
