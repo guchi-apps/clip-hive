@@ -2,6 +2,7 @@ import { NextResponse, type NextRequest } from "next/server";
 
 import { PIN_COOKIE_NAME } from "@/lib/pin-cookie";
 import { getRequestOrigin } from "@/lib/request-origin";
+import { signOutLocal } from "@/lib/supabase/sign-out";
 import { createClient } from "@/lib/supabase/server";
 
 /**
@@ -14,7 +15,7 @@ import { createClient } from "@/lib/supabase/server";
 export async function POST(request: NextRequest) {
   const supabase = await createClient();
 
-  const { error } = await supabase.auth.signOut();
+  const { error } = await signOutLocal(supabase);
   if (error) {
     console.error("[clip-hive] ログアウトに失敗:", error.message);
   }

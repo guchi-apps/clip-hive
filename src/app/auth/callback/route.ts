@@ -4,6 +4,7 @@ import { isAllowedEmail } from "@/lib/allowed-users";
 import { db } from "@/lib/db";
 import { getRequestOrigin, safeNextPath } from "@/lib/request-origin";
 import { notifySignalyLogin } from "@/lib/signaly";
+import { signOutLocal } from "@/lib/supabase/sign-out";
 import { createClient } from "@/lib/supabase/server";
 
 export async function GET(request: NextRequest) {
@@ -31,7 +32,7 @@ export async function GET(request: NextRequest) {
   // clip-hive を使ってよいことは別に判定する。許可外のアカウントは clip-hive 側のユーザーを
   // 作らず、Supabase のセッションも破棄する。
   if (!isAllowedEmail(email)) {
-    await supabase.auth.signOut();
+    await signOutLocal(supabase);
     return NextResponse.redirect(`${origin}/auth/signin?error=not_allowed`);
   }
 
