@@ -121,7 +121,7 @@ export function VideoForm({ mode, video }: { mode: "create" | "edit"; video?: Vi
       body: JSON.stringify({
         title,
         ...(target.sourceType === "URL" && { url }),
-        note: note || undefined,
+        note,
         durationMinutes: durationMinutes ? Number(durationMinutes) : null,
         tags,
       }),
