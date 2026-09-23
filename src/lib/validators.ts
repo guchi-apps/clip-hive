@@ -12,9 +12,16 @@ const titleSchema = z
   .optional()
   .transform((v) => (v ? v : null));
 
+// 空文字は null として保存する。未送信(undefined)は「更新しない」のまま残す。
+const noteSchema = z
+  .string()
+  .max(2000)
+  .optional()
+  .transform((v) => (v === undefined ? undefined : v === "" ? null : v));
+
 export const VideoCommonSchema = z.object({
   title: titleSchema,
-  note: z.string().max(2000).optional(),
+  note: noteSchema,
   durationMinutes: z.number().nonnegative("0以上の数値を入力してください").optional(),
   tags: tagNamesSchema,
 });
@@ -27,7 +34,7 @@ export type CreateUrlVideo = z.infer<typeof CreateUrlVideoSchema>;
 
 export const UpdateVideoSchema = z.object({
   title: titleSchema,
-  note: z.string().max(2000).optional(),
+  note: noteSchema,
   durationMinutes: z.number().nonnegative("0以上の数値を入力してください").optional().nullable(),
   tags: tagNamesSchema,
   url: z.string().trim().min(1).max(2048).url("有効なURLを入力してください").optional(),
