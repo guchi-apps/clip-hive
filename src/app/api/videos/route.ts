@@ -148,9 +148,12 @@ function parseUploadStream(
         return;
       }
 
-      const extension = info.filename.includes(".")
+      // 拡張子はファイル名由来の任意文字列なので、"/" 等がストレージキーに混入しないよう
+      // 英数字のみの短いものに限る。外れたら拡張子なしにする。
+      const rawExtension = info.filename.includes(".")
         ? info.filename.slice(info.filename.lastIndexOf("."))
         : "";
+      const extension = /^\.[A-Za-z0-9]{1,10}$/.test(rawExtension) ? rawExtension : "";
       const key = `${userId}/${randomUUID()}${extension}`;
       pendingKey = key;
 
