@@ -18,6 +18,7 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
+import { redirectIfPinRequired } from "@/lib/pin-required";
 
 export function VideoActions({ videoId }: { videoId: string }) {
   const router = useRouter();
@@ -27,6 +28,7 @@ export function VideoActions({ videoId }: { videoId: string }) {
     setDeleting(true);
     try {
       const res = await fetch(`/api/videos/${videoId}`, { method: "DELETE" });
+      if (await redirectIfPinRequired(res)) return;
       if (!res.ok) throw new Error("削除に失敗しました");
       toast.success("ゴミ箱に移動しました");
       router.push("/videos");

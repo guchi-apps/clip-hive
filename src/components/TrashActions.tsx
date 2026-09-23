@@ -17,6 +17,7 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
+import { redirectIfPinRequired } from "@/lib/pin-required";
 
 export function TrashActions({ videoId }: { videoId: string }) {
   const router = useRouter();
@@ -26,6 +27,7 @@ export function TrashActions({ videoId }: { videoId: string }) {
     setPending(true);
     try {
       const res = await fetch(`/api/videos/${videoId}/restore`, { method: "POST" });
+      if (await redirectIfPinRequired(res)) return;
       if (!res.ok) throw new Error("復元に失敗しました");
       toast.success("復元しました");
       router.refresh();
@@ -40,6 +42,7 @@ export function TrashActions({ videoId }: { videoId: string }) {
     setPending(true);
     try {
       const res = await fetch(`/api/videos/${videoId}/permanent`, { method: "DELETE" });
+      if (await redirectIfPinRequired(res)) return;
       if (!res.ok) throw new Error("完全削除に失敗しました");
       toast.success("完全に削除しました");
       router.refresh();
