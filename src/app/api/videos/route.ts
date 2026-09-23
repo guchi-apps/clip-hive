@@ -14,6 +14,7 @@ import { getDefaultStorageDriver, getStorageAdapter } from "@/lib/storage";
 import type { StorageAdapter } from "@/lib/storage";
 import { resolveTagIds } from "@/lib/tag-service";
 import { hashUrl } from "@/lib/url-hash";
+import { withUserLock } from "@/lib/user-lock";
 import { CreateUrlVideoSchema, VideoCommonSchema } from "@/lib/validators";
 import { serializeVideo } from "@/lib/video-dto";
 
@@ -253,30 +254,34 @@ async function createFileVideo(userId: string, request: Request) {
     return Response.json({ error: parsed.error.flatten() }, { status: 400 });
   }
 
-  // Content-Length が無いリクエスト(稀)向けの事後チェック。
-  if (contentLength <= 0 && !(await hasCapacityFor(userId, BigInt(uploaded.size)))) {
-    await storage.delete(uploaded.key).catch(() => {});
-    return Response.json({ error: "容量の上限を超えるためアップロードできません" }, { status: 413 });
-  }
-
   const { tags, durationMinutes, ...rest } = parsed.data;
   const tagIds = await resolveTagIds(userId, tags);
 
-  const video = await db.video.create({
-    data: {
-      userId,
-      sourceType: "FILE",
-      ...rest,
-      storageDriver: driver,
-      storageKey: uploaded.key,
-      originalFileName: uploaded.fileName,
-      mimeType: uploaded.mimeType,
-      fileSize: BigInt(uploaded.size),
-      durationSeconds: durationMinutes !== undefined ? minutesToSeconds(durationMinutes) : null,
-      ...(tagIds && { tags: { connect: tagIds.map((id) => ({ id })) } }),
-    },
-    include: VIDEO_INCLUDE,
+  // 事前チェックは Content-Length による近似で、同時アップロードにはロックが無いため、
+  // 実サイズでの容量チェックと db.video.create をユーザー単位で直列化する。
+  const video = await withUserLock(userId, async () => {
+    if (!(await hasCapacityFor(userId, BigInt(uploaded.size)))) return null;
+    return db.video.create({
+      data: {
+        userId,
+        sourceType: "FILE",
+        ...rest,
+        storageDriver: driver,
+        storageKey: uploaded.key,
+        originalFileName: uploaded.fileName,
+        mimeType: uploaded.mimeType,
+        fileSize: BigInt(uploaded.size),
+        durationSeconds: durationMinutes !== undefined ? minutesToSeconds(durationMinutes) : null,
+        ...(tagIds && { tags: { connect: tagIds.map((id) => ({ id })) } }),
+      },
+      include: VIDEO_INCLUDE,
+    });
   });
+
+  if (!video) {
+    await storage.delete(uploaded.key).catch(() => {});
+    return Response.json({ error: "容量の上限を超えるためアップロードできません" }, { status: 413 });
+  }
 
   return Response.json(serializeVideo(video), { status: 201 });
 }
