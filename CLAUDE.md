@@ -16,10 +16,12 @@ READMEに書かれていない判断基準だけを書く。
 | Lint | `npm run lint` |
 | 型チェック | `npm run typecheck` |
 | ビルド | `npm run build:ci` |
+| 単体テスト | `npm run test:unit` |
 | マイグレーション適用 | `npm run db:migrate:deploy` |
 
-`npm test` は `lint && typecheck` の別名で、テストランナーは動かない（このリポジトリに
-自動テストは無い）。`npm run build` と `npm run build:ci` は同じ内容（`prisma generate && next build --webpack`）で、
+`npm test` は `lint && typecheck` の別名で、テストは動かない。自動テストは `test:unit`
+（`node --test src/lib/supabase/sign-out.test.ts`）として別に存在し、`npm test` には含まれない。
+テストを追加・変更したときは `npm run test:unit` を別に実行する。`npm run build` と `npm run build:ci` は同じ内容（`prisma generate && next build --webpack`）で、
 どちらもラッパーを通さないため無人実行から使える。
 
 `npm run dev` は `scripts/dev.sh` 経由で `scripts/ensure-mysql.sh` を呼び、ローカルの MySQL/MariaDB と
