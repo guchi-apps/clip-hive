@@ -9,6 +9,7 @@ import {
   signPinCookie,
   verifyPinCookie,
 } from "@/lib/pin-cookie";
+import { PIN_REQUIRED_CODE } from "@/lib/pin-required";
 import { getRequestOrigin } from "@/lib/request-origin";
 
 /** ログインしていなくても開けるパス。 */
@@ -98,9 +99,10 @@ export async function updateSession(request: NextRequest) {
     return withRefreshedCookies(serviceUnavailable(pathname));
   }
 
-  // /api/* はルートハンドラ自身が requireUserId() で認証チェックし 401 JSON を返す設計のため、
+  // /api/* は未ログインならルートハンドラ自身が requireUserId() で 401 JSON を返す設計のため、
   // ここではリダイレクトしない（HTML のログイン画面を返すと fetch 側が解釈できない）。
-  if (pathname.startsWith("/api/")) {
+  const isApi = pathname.startsWith("/api/");
+  if (isApi && !user) {
     return proceed();
   }
 
@@ -115,20 +117,28 @@ export async function updateSession(request: NextRequest) {
   const pinCookie = request.cookies.get(PIN_COOKIE_NAME)?.value;
   const pinVerified = !!pinCookie && (await verifyPinCookie(pinCookie, user.id, PIN_MAX_AGE_MS));
 
-  if (pathname === PIN_PATH) {
+  if (isApi) {
+    // ページと同じPIN検証をAPIにも課す。リダイレクトはfetch側が解釈できないためJSONで返す。
+    if (!pinVerified) {
+      return withRefreshedCookies(
+        NextResponse.json(
+          { error: "PINの入力が必要です。PIN入力画面から認証してください。", code: PIN_REQUIRED_CODE },
+          { status: 403, headers: { "Cache-Control": "no-store" } },
+        ),
+      );
+    }
+  } else if (pathname === PIN_PATH) {
     if (pinVerified) {
       return withRefreshedCookies(NextResponse.redirect(new URL("/videos", origin)));
     }
     return proceed();
-  }
-
-  if (!pinVerified) {
+  } else if (!pinVerified) {
     const pinUrl = new URL(PIN_PATH, origin);
     pinUrl.searchParams.set("callbackUrl", pathname);
     return withRefreshedCookies(NextResponse.redirect(pinUrl));
   }
 
-  // アクセスが続く限り有効期限をスライドさせる。
+  // アクセスが続く限り有効期限をスライドさせる（APIも対象。動画再生中のRangeリクエストで期限切れにしない）。
   const response = proceed();
   response.cookies.set(PIN_COOKIE_NAME, await signPinCookie(user.id), pinCookieOptions);
   return response;
