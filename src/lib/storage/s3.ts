@@ -11,6 +11,13 @@ import type { PutObjectParams, RangeOptions, StorageAdapter } from "./types";
 
 let client: S3Client | undefined;
 
+// 必須の環境変数を取得する。未設定なら変数名入りでエラーにする。
+function requireEnv(name: string): string {
+  const value = process.env[name];
+  if (!value) throw new Error(`${name} is not set`);
+  return value;
+}
+
 // R2 / MinIO 等の S3 互換ストレージを想定し、endpoint/forcePathStyle を環境変数で調整可能にする。
 function getClient(): S3Client {
   if (client) return client;
@@ -20,17 +27,15 @@ function getClient(): S3Client {
     endpoint: process.env.S3_ENDPOINT,
     forcePathStyle: process.env.S3_FORCE_PATH_STYLE === "true",
     credentials: {
-      accessKeyId: process.env.S3_ACCESS_KEY_ID!,
-      secretAccessKey: process.env.S3_SECRET_ACCESS_KEY!,
+      accessKeyId: requireEnv("S3_ACCESS_KEY_ID"),
+      secretAccessKey: requireEnv("S3_SECRET_ACCESS_KEY"),
     },
   });
   return client;
 }
 
 function bucket(): string {
-  const value = process.env.S3_BUCKET;
-  if (!value) throw new Error("S3_BUCKET is not set");
-  return value;
+  return requireEnv("S3_BUCKET");
 }
 
 export const s3StorageAdapter: StorageAdapter = {

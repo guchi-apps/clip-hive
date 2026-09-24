@@ -14,6 +14,7 @@ import { TagInput } from "@/components/TagInput";
 import { cn } from "@/lib/utils";
 import { secondsToMinutes } from "@/lib/duration";
 import type { TagDTO, VideoDTO } from "@/types";
+import { redirectIfPinRequired } from "@/lib/pin-required";
 
 // 大容量アップロードは、アプリまで届かずリバースプロキシ側で打ち切られることがある
 // （サイズ上限なら413、転送に時間がかかりすぎた場合は408/504）。その応答はJSONではなく
@@ -107,6 +108,7 @@ export function VideoForm({ mode, video }: { mode: "create" | "edit"; video?: Vi
         );
       }
     }
+    if (await redirectIfPinRequired(res)) return;
     if (!res.ok) throw new Error(await extractError(res));
     const created = await res.json();
     toast.success("動画を登録しました");
@@ -121,11 +123,12 @@ export function VideoForm({ mode, video }: { mode: "create" | "edit"; video?: Vi
       body: JSON.stringify({
         title,
         ...(target.sourceType === "URL" && { url }),
-        note: note || undefined,
+        note,
         durationMinutes: durationMinutes ? Number(durationMinutes) : null,
         tags,
       }),
     });
+    if (await redirectIfPinRequired(res)) return;
     if (!res.ok) throw new Error(await extractError(res));
     toast.success("更新しました");
     router.push(`/videos/${target.id}`);

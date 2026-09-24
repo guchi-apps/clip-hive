@@ -76,15 +76,20 @@ export async function verifyPinAction(
 
   const ok = await verifyPin(parsed.data, user.pinHash, user.pinSalt);
   if (!ok) {
-    const attempts = user.pinFailedAttempts + 1;
-    const lockedOut = attempts >= LOCKOUT_THRESHOLD;
-    await db.user.update({
+    // 並列リクエストで加算が上書きし合わないよう、DB側でアトミックに加算し、更新後の値で判定する
+    const { pinFailedAttempts: attempts } = await db.user.update({
       where: { id: userId },
-      data: {
-        pinFailedAttempts: lockedOut ? 0 : attempts,
-        pinLockedUntil: lockedOut ? new Date(Date.now() + LOCKOUT_MINUTES * 60_000) : null,
-      },
+      data: { pinFailedAttempts: { increment: 1 } },
+      select: { pinFailedAttempts: true },
     });
+    const lockedOut = attempts >= LOCKOUT_THRESHOLD;
+    if (lockedOut) {
+      // 閾値以上のときだけロックを設定してカウンタを戻す（並列で先に戻された場合は何もしない）
+      await db.user.updateMany({
+        where: { id: userId, pinFailedAttempts: { gte: LOCKOUT_THRESHOLD } },
+        data: { pinFailedAttempts: 0, pinLockedUntil: new Date(Date.now() + LOCKOUT_MINUTES * 60_000) },
+      });
+    }
     return lockedOut
       ? "試行回数の上限に達しました。しばらく待ってから再度お試しください"
       : "PINが正しくありません";
