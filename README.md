@@ -44,7 +44,8 @@ npm run dev
 | --- | --- |
 | `NEXT_PUBLIC_SUPABASE_URL` | Supabase の project-url |
 | `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` | Supabase の publishable key（`service_role` キーは使わない・置かない） |
-| `ALLOWED_GOOGLE_EMAILS` | ログインを許可する Google アカウント（カンマ区切り）。**未設定なら全員拒否** |
+| `ACCESS_API_URL` | （任意）StatusHub の判定APIの宛先。未設定なら本番の StatusHub。開発で別の宛先へ向けるときだけ使う |
+| `SHARED_TOKEN_API_SECRET`・`ISSUE_DECK_URL` | 判定APIのアプリ別トークン（issue-deck の共有トークン `CLIP_HIVE_ACCESS_APP_TOKEN`）を読むための値。**読めないと全員拒否** |
 | `AUTH_SECRET` | PWA起動時の簡易PIN認証で使う Cookie の署名鍵 |
 
 開発用 Supabase プロジェクトの Redirect URLs に `http://localhost:3000/auth/callback` を登録しておく（本番は `https://<本番ドメイン>/auth/callback`）。
@@ -55,7 +56,7 @@ npm run dev
 | --- | --- |
 | `src/proxy.ts` → `src/lib/supabase/proxy-session.ts` | 全リクエストでセッションを更新・検証し、未ログインを `/auth/signin` へ差し戻す。PIN認証もここで判定する |
 | `src/app/auth/google/route.ts` | Google ログインを開始する（サーバー側で認可URLを組み立てて302） |
-| `src/app/auth/callback/route.ts` | 認可コードをセッションへ交換し、許可メール判定と `User.supabaseUserId` の紐付けを行う |
+| `src/app/auth/callback/route.ts` | 認可コードをセッションへ交換し、StatusHub の共通アクセス設定による許可判定（`src/lib/access/`）と `User.supabaseUserId` の紐付けを行う |
 | `src/app/auth/signout/route.ts` | ログアウト（POST） |
 | `src/lib/auth-user.ts` | `getCurrentUser()` / `requireUserId()`。proxy が検証済みの Supabase ユーザーIDをヘッダー経由で受け取り、DB のユーザーを引く |
 

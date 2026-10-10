@@ -183,3 +183,16 @@ GitHub Actions の実行ログとビルド成果物も誰でも閲覧・ダウ�
 サンプルには `you@example.com`・`example.com` のようなダミー値だけを書く。
 実際に `.env.local.example` の `ALLOWED_EMAIL` へ個人のGoogleアカウントを書いていたことがあり、
 全履歴の書き換えとGitHub Supportへのパージ依頼という重い作業を招いた（#51）。
+
+## ログイン許可はStatusHubの共通アクセス設定で判定する（#184）
+
+ログインを許可するかは StatusHub の判定API（`src/lib/access/`）で決める。**旧 `ALLOWED_GOOGLE_EMAILS` は判定に使わない・フォールバックにもしない**
+（判定APIが使えないときに旧リストで通すと、StatusHub で取り消した利用者が通ってしまう）。
+
+- 判定箇所は `/auth/callback`・`updateSession()`（`proxy-session.ts`）・`getCurrentUser()`（`auth-user.ts`）の3つ。
+  取り消しをログイン済みのセッションにも効かせるため、callback だけでなくリクエストごとに判定する（結果は `ttlSeconds`＝30秒キャッシュ）
+- 取得失敗時は直前の判定を `maxStaleSeconds`（5分）まで使い、超えたら拒否。一度も判定できていない利用者・トークン未取得は拒否（許可を広げない）
+- アプリ別トークンは StatusHub 管理画面「トークン発行」が issue-deck の共有トークン `CLIP_HIVE_ACCESS_APP_TOKEN` へ自動で書く。
+  アプリは `SHARED_TOKEN_API_SECRET`・`ISSUE_DECK_URL` で読むだけで、トークン自体は1Password・GitHub Secrets・デプロイを経由しない
+- `instrumentation.ts` が4分ごとにハートビートを送り、管理画面の「反映済み」の根拠にする
+- Supabase が検証した `sub`・メール・確認済みかだけを送る。ブラウザの申告やユーザーメタデータは信じない
