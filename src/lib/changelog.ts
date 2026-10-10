@@ -31,6 +31,13 @@ export interface ChangelogEntry {
  */
 export const APP_CHANGELOG: ChangelogEntry[] = [
   {
+    version: "1.1.0",
+    date: "2026-10-10",
+    changes: [
+      "ログインできる利用者の管理が、共通のアクセス設定で一括して行えるようになりました。許可を取り消した利用者は、ログイン済みの状態でも短時間のうちにアクセスできなくなります。",
+    ],
+  },
+  {
     version: "1.0.18",
     date: "2026-09-24",
     changes: [
