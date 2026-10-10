@@ -1,6 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
 
-import { isAllowedEmail } from "@/lib/allowed-users";
+import { isUserAllowed } from "@/lib/access/client";
 import { db } from "@/lib/db";
 import { getRequestOrigin, safeNextPath } from "@/lib/request-origin";
 import { notifySignalyLogin } from "@/lib/signaly";
@@ -29,9 +29,9 @@ export async function GET(request: NextRequest) {
   const email = user.email ?? null;
 
   // Supabase プロジェクトを他アプリと共用しているため、Supabase でログインできることと
-  // clip-hive を使ってよいことは別に判定する。許可外のアカウントは clip-hive 側のユーザーを
+  // clip-hive を使ってよいことは別に判定する（StatusHub の共通アクセス設定）。許可外のアカウントは clip-hive 側のユーザーを
   // 作らず、Supabase のセッションも破棄する。
-  if (!isAllowedEmail(email)) {
+  if (!(await isUserAllowed(user))) {
     await signOutLocal(supabase);
     return NextResponse.redirect(`${origin}/auth/signin?error=not_allowed`);
   }

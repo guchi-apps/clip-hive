@@ -1,6 +1,6 @@
 {
   "name": "clip-hive",
-  "version": "1.0.25",
+  "version": "1.1.0",
   "private": true,
   "engines": {
     "node": ">=20.19.0"
@@ -13,7 +13,7 @@
     "lint": "eslint",
     "typecheck": "tsc --noEmit",
     "test": "npm run lint && npm run typecheck",
-    "test:unit": "node --test src/lib/supabase/sign-out.test.ts src/lib/user-lock.test.ts",
+    "test:unit": "node --test src/lib/supabase/sign-out.test.ts src/lib/user-lock.test.ts src/lib/access/decision.test.ts src/lib/shared-token.test.ts",
     "postinstall": "prisma generate",
     "preversion": "npm test",
     "version": "node scripts/version-changelog.mjs && git add src/lib/changelog.ts",
