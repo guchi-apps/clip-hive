@@ -1,5 +1,6 @@
 import { headers } from "next/headers";
 
+import { decideAccess } from "@/lib/access/client";
 import { SUPABASE_USER_ID_HEADER } from "@/lib/auth-header";
 import { db } from "@/lib/db";
 
@@ -29,6 +30,11 @@ export async function getCurrentUser(): Promise<CurrentUser | null> {
     select: { id: true, supabaseUserId: true, email: true, name: true, image: true },
   });
   if (!user?.supabaseUserId) return null;
+
+  // proxy.ts が同じ主体を判定済みで、結果は ttl の間キャッシュされる。proxy の matcher が外れた経路への備え。
+  // DB の行はメール確認済みのログイン（/auth/callback）でしか作られないため emailVerified は true。
+  const decision = await decideAccess({ sub: supabaseUserId, email: user.email, emailVerified: true });
+  if (!decision.allowed) return null;
 
   return { ...user, supabaseUserId: user.supabaseUserId };
 }

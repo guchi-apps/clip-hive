@@ -1,6 +1,7 @@
 import { createServerClient, type CookieOptions } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 
+import { isUserAllowed } from "@/lib/access/client";
 import { SUPABASE_USER_ID_HEADER } from "@/lib/auth-header";
 import {
   PIN_COOKIE_NAME,
@@ -54,9 +55,14 @@ export async function updateSession(request: NextRequest) {
   // Supabase 側で検証させる（自前でデコードしない）。届かなかったときの戻り値は未ログインと
   // 同じ user: null なので、error を見ないと「セッションが無い」と「今は確認できない」を取り違える。
   const {
-    data: { user },
+    data: { user: authenticatedUser },
     error,
   } = await supabase.auth.getUser();
+
+  // StatusHub の共通アクセス設定で許可されなくなったアカウントは、Supabase のセッションが
+  // refresh token で有効なままでも未ログインと同じに扱う（許可の取り消しをログイン済みにも効かせる）。
+  // 結果は ttl の間キャッシュされるため、通常はリクエストごとの往復を増やさない。
+  const user = authenticatedUser && (await isUserAllowed(authenticatedUser)) ? authenticatedUser : null;
 
   // 通信不達・5xx・レート制限。セッションが無効になったわけではないため、ログイン画面へは戻さない。
   const authUnreachable = isAuthUnreachable(error);
