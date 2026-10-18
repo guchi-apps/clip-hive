@@ -264,15 +264,24 @@ jobs:
           SHARED_TOKEN_API_SECRET: ${{ env.SHARED_TOKEN_API_SECRET }}
           ISSUE_DECK_URL: ${{ env.ISSUE_DECK_URL }}
           TARGET_DIR: ${{ env.TARGET_DIR }}
+          # 稼働している版の照合に使う（#207）。ヘルスチェックが `/api/app-version` の `sha` と突き合わせる。
+          # コミットの SHA は公開情報なのでそのまま渡してよい
+          APP_COMMIT_SHA: ${{ github.sha }}
         with:
           host: ${{ env.HOST }}
           username: ${{ env.USERNAME }}
           key: ${{ env.SSH_PRIVATE_KEY }}
           port: ${{ env.SSH_PORT }}
-          envs: DATABASE_URL,MIGRATE_DATABASE_URL,DB_USER,DB_PASSWORD,DB_HOST,DB_PORT,DB_NAME,AUTH_SECRET,NEXT_PUBLIC_SUPABASE_URL,NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY,ALLOWED_GOOGLE_EMAILS,SIGNALY_LOGIN_WEBHOOK_URL,SHARED_TOKEN_API_SECRET,ISSUE_DECK_URL,TARGET_DIR
+          envs: APP_COMMIT_SHA,DATABASE_URL,MIGRATE_DATABASE_URL,DB_USER,DB_PASSWORD,DB_HOST,DB_PORT,DB_NAME,AUTH_SECRET,NEXT_PUBLIC_SUPABASE_URL,NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY,ALLOWED_GOOGLE_EMAILS,SIGNALY_LOGIN_WEBHOOK_URL,SHARED_TOKEN_API_SECRET,ISSUE_DECK_URL,TARGET_DIR
           script: |
             set -euo pipefail
             cd "${TARGET_DIR}"
+
+            # 照合する SHA が渡っていなければ、照合のしようがないので最初に止める（#207）。
+            if [ -z "${APP_COMMIT_SHA:-}" ]; then
+              echo "APP_COMMIT_SHA is empty. Cannot verify the deployed version."
+              exit 1
+            fi
 
             # 待受ポートはシークレットではなく設定値として平文で持つ
             # （guchi-apps/docs の standards/ports.md「ポート番号は 1Password で管理しない」。#40）。
@@ -294,6 +303,8 @@ jobs:
             echo "Updating .env..."
             update_env NODE_ENV production
             update_env PORT "$PORT"
+            # /api/app-version が返す稼働中のコミット（#207）。pm2 の起動より前に書く
+            update_env APP_COMMIT_SHA "$APP_COMMIT_SHA"
             update_env DATABASE_URL "$DATABASE_URL"
             update_env DB_USER "$DB_USER"
             update_env DB_PASSWORD "$DB_PASSWORD"
@@ -333,15 +344,20 @@ jobs:
             echo "Health check..."
             # Next.js は起動完了までに数秒かかる。1回だけの curl では起動を待ちきれず、
             # アプリが正常に立ち上がっていても deploy ジョブが失敗する（guchi-apps/docs#29）。
+            # `/` は旧版が動いたままでも 200 を返すため、`/api/app-version` が返す `sha` が
+            # 今回デプロイしたコミットと一致するまで成功にしない（#207）。
+            body=""
             for i in $(seq 1 30); do
-              if curl -fsS -o /dev/null "http://127.0.0.1:${PORT}/"; then
-                echo "Deployment successful."
+              body="$(curl -fsS "http://127.0.0.1:${PORT}/api/app-version" 2>/dev/null || true)"
+              if [ -n "$body" ] && printf '%s' "$body" | grep -qF "\"sha\":\"${APP_COMMIT_SHA}\""; then
+                echo "Deployment successful. (sha=${APP_COMMIT_SHA})"
                 exit 0
               fi
               sleep 2
             done
 
-            echo "Health check failed after 60s."
+            echo "Health check failed after 60s: /api/app-version did not report sha=${APP_COMMIT_SHA}."
+            echo "last response: ${body:-<none>}"
             pm2 describe clip-hive || true
             pm2 logs clip-hive --lines 50 --nostream || true
             exit 1

@@ -12,16 +12,10 @@ import {
 } from "@/lib/pin-cookie";
 import { PIN_REQUIRED_CODE } from "@/lib/pin-required";
 import { getRequestOrigin } from "@/lib/request-origin";
-
-/** ログインしていなくても開けるパス。 */
-const publicPaths = ["/", "/auth/signin", "/auth/google", "/auth/callback", "/auth/signout"];
+import { isPublicPath } from "@/lib/supabase/public-paths";
 
 /** ログイン済みだがPIN未入力でも開けるパス（PIN入力画面そのもの）。 */
 const PIN_PATH = "/auth/pin";
-
-function isPublicPath(pathname: string): boolean {
-  return publicPaths.some((path) => pathname === path || pathname.startsWith(`${path}/`));
-}
 
 /**
  * Supabase のセッションを更新し、ログイン状態に応じてアクセスを振り分ける。
