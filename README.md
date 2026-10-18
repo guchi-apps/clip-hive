@@ -134,7 +134,7 @@ Node の `requestTimeout` は既定で5分（リクエスト開始からボデ�
 
 CI/CDワークフローは**実行時にはGitHubのsecret / variableからだけ値を取る**。1Passwordは「人が管理する唯一の正」として残し、実行時には呼び出さない（1Passwordサービスアカウントの日次レート制限がフリート全体のデプロイを止めたため。guchi-apps/issue-deck#1302 / #1307）。
 
-- どの値をGitHub側のどこから取るかは `.github/secrets-manifest.tsv` が正。`SCOPE` が `inherit` の11件はorganizationの共通値（`SHARED_DB_*` / `SERVER_*` / `SUPABASE_*` / `SIGNALY_WEBHOOK_URL`）を参照し、`repo` の6件はこのリポジトリのsecret / variableに置く（`PORT` はマニフェストで管理せず `deploy.yml` に平文で持つ）
+- どの値をGitHub側のどこから取るかは `.github/secrets-manifest.tsv` が正。`SCOPE` が `inherit` の14件はorganizationの共通値（`SHARED_DB_*` / `SERVER_*` / `SUPABASE_*` / `SIGNALY_*` / `APP_BASE_URL`）を参照し、`repo` の7件はこのリポジトリのsecret / variableに置く（デプロイ用のSSH鍵 `SSH_PRIVATE_KEY` はアプリ専用で `repo`。#207）（`PORT` はマニフェストで管理せず `deploy.yml` に平文で持つ）
 - 1Password側の値を変えたときだけ `scripts/sync-github-secrets.sh` で同期する。`op` は**個人アカウントのセッション**で動かす（サービスアカウントでは書き込めない）
 
 ```bash
@@ -153,5 +153,6 @@ scripts/sync-github-secrets.sh
 - Signaly でアプリ用チャンネルを作成し `ci-webhook-url` を登録する
 - `scripts/sync-github-secrets.sh` を実行し、1Passwordの値をGitHubのsecret / variableへ投入する
 - `main` ブランチの Branch protection（CI必須）を設定する
-- VPS上に `/apps/clip-hive/` を作成し、Apache VirtualHost（本番ポート `3108`）を追加する
+- VPS上に `/home/github-user/apps/clip-hive/` を作成し、Apache VirtualHost（本番ポート `3108`）を追加する
+- 本番デプロイはVPSのapp-deploy-gateを通す（#207。詳細は `CLAUDE.md`「本番デプロイはVPSのapp-deploy-gateを通す」）。アプリ専用のSSH鍵を作って秘密鍵を `op://apps/clip-hive/deploy-ssh-key` へ置き、公開鍵をVPSで `sudo scripts/setup-app-keys.sh add --app clip-hive --pubkey <公開鍵ファイル>`（guchi-apps/vps）で登録してから、`gh workflow run sync-secrets.yml -f only=SSH_PRIVATE_KEY` で同期する
 - 本番用 Supabase プロジェクトの Redirect URLs に `https://<本番ドメイン>/auth/callback` を登録する
