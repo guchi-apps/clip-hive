@@ -42,8 +42,9 @@ READMEに書かれていない判断基準だけを書く。
 共有MariaDBでアプリ本体が使うユーザー（`DB_USER`）は、DB単位の `SELECT` / `INSERT` / `UPDATE` /
 `DELETE` しか持たない。`ALTER` などのDDLは、DDL権限を持つマイグレーション専用ユーザー
 （organizationの共通シークレット `SHARED_DB_MIGRATE_USER` / `SHARED_DB_MIGRATE_PASSWORD`）でしか
-実行できない。`deploy.yml` は `prisma migrate deploy` の実行時だけ `MIGRATE_DATABASE_URL` へ
-差し替える（#86。`.env` に書く `DATABASE_URL` は通常ユーザーのままにする）。
+実行できない。`deploy.yml` は `MIGRATE_DATABASE_URL` をVPSのapp-deploy-gateへ渡し、gateが
+`prisma migrate deploy` の実行時だけそれを使う（#86・#207。gateは `MIGRATE_DATABASE_URL` を `.env` へ
+書かないため、`.env` の `DATABASE_URL` は通常ユーザーのままになる）。
 
 - テーブルを増やすだけのマイグレーションは通ってしまうことがあるため、**列を追加した最初の
   デプロイで初めて** `ALTER command denied`（MySQL 1142 → Prisma P3018）として表面化する
@@ -52,6 +53,23 @@ READMEに書かれていない判断基準だけを書く。
 - 一度失敗すると `_prisma_migrations` に失敗記録が残り、以後のデプロイは P3009 で止まる。
   原因を直したうえで、本番で `npx prisma migrate resolve --rolled-back <マイグレーション名>` を
   実行してから再デプロイする
+
+## 本番デプロイはVPSのapp-deploy-gateを通す（#207）
+
+`deploy.yml` の `deploy` ジョブは、アプリ専用の鍵（`SSH_PRIVATE_KEY`、正は `op://apps/clip-hive/deploy-ssh-key`）で
+VPSへ `upload`（配布物）→ `env`（`.env` へ書く値を標準入力で1行1変数）→ `deploy` の3語だけを送る。
+鍵はVPSの `authorized_keys` の `command=` で gate（`/usr/local/sbin/app-deploy-gate clip-hive`。
+guchi-apps/vps の `scripts/app-deploy-gate.sh`）に固定されており、任意のシェルコマンドは実行できない。
+置き場は `/home/github-user/apps/clip-hive` 固定で、`TARGET_DIR` は使わない。
+
+- 旧配布物の削除・展開・`.env` 更新・`npm ci --omit=dev`・`prisma migrate deploy`・pm2 の再起動
+  （`deploy/ecosystem.config.js` の `clip-hive`）・稼働版の照合（`/api/app-version` の `sha`）はgateが行う。
+  **SSH先で独自の処理を足せない。** マイグレーション直前の処理だけは `deploy/pre-migrate.sh` に置ける
+- `.env` へ新しい値を足すときは `Send environment variables` ステップの送る一覧へ足す。**改行を含む値は送れない**
+  （PEM等は base64 の1行にしてアプリ側で戻す）
+- 動画の保存先 `storage/`（`STORAGE_DRIVER=LOCAL` の既定）は**配布物（tar）に含めない。** gateは前回の配布物に
+  入っていたファイルと固定の一覧（`.next` `public` `package.json` `prisma` `deploy` `next.config.*` など）だけを消すため、
+  配布物に `storage` を入れると次回のデプロイでアップロード済みの動画が消える
 
 ## マルチエージェント運用（GitHub Actions 無人実行）
 
