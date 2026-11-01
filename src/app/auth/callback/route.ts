@@ -3,7 +3,6 @@ import { NextResponse, type NextRequest } from "next/server";
 import { isUserAllowed } from "@/lib/access/client";
 import { db } from "@/lib/db";
 import { getRequestOrigin, safeNextPath } from "@/lib/request-origin";
-import { notifySignalyLogin } from "@/lib/signaly";
 import { signOutLocal } from "@/lib/supabase/sign-out";
 import { createClient } from "@/lib/supabase/server";
 
@@ -41,13 +40,6 @@ export async function GET(request: NextRequest) {
   const image = (metadata.avatar_url as string) ?? null;
 
   await linkSupabaseUser({ supabaseUserId: user.id, email: email!, name, image });
-
-  // 接続元IP・User-Agent は notifySignalyLogin がリクエストヘッダーから拾う
-  await notifySignalyLogin({
-    email,
-    name,
-    provider: user.app_metadata?.provider ?? null,
-  });
 
   return NextResponse.redirect(`${origin}${next}`);
 }
