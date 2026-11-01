@@ -128,7 +128,6 @@ jobs:
       SHARED_TOKEN_API_SECRET: ${{ secrets.SHARED_TOKEN_API_SECRET }}
       ISSUE_DECK_URL: ${{ vars.APP_BASE_URL }}
       SIGNALY_WEBHOOK_URL: ${{ secrets.SIGNALY_WEBHOOK_URL }}
-      TARGET_DIR: ${{ secrets.TARGET_DIR }}
 
     steps:
       - name: Checkout code
@@ -208,7 +207,6 @@ jobs:
       SHARED_TOKEN_API_SECRET: ${{ secrets.SHARED_TOKEN_API_SECRET }}
       ISSUE_DECK_URL: ${{ vars.APP_BASE_URL }}
       SIGNALY_WEBHOOK_URL: ${{ secrets.SIGNALY_WEBHOOK_URL }}
-      TARGET_DIR: ${{ secrets.TARGET_DIR }}
 
     steps:
       - name: Checkout code
